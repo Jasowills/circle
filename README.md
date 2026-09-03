@@ -134,6 +134,31 @@ apps/mobile   Expo + same API (view, contribute, live feed; create lives on web)
 4. **No payment gateway / passwords / multi-currency / payouts.** Explicitly out of
    scope; contributions record intent against the ledger.
 
+## Google setup (one project, three clients)
+
+Create one GCP project, configure the OAuth consent screen, then create three
+OAuth client IDs under Credentials. The backend accepts ID tokens minted for
+any of the three, so they must all live in the same project.
+
+1. **Web application** → `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` in
+   `apps/api/.env`. This drives the browser flow. Authorized redirect URIs:
+   `http://localhost:3000/auth/google/callback` locally plus
+   `https://<your-api>/auth/google/callback` in prod.
+2. **iOS** → bundle ID `com.circle.savings` → `GOOGLE_IOS_CLIENT_ID` in
+   `apps/api/.env` and `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` in `apps/mobile/.env`.
+3. **Android** → package `com.circle.savings` + your SHA-1 →
+   `GOOGLE_ANDROID_CLIENT_ID` in both `.env` files. Local emulator builds use
+   the debug keystore: `keytool -list -v -keystore ~/.android/debug.keystore
+   -alias androiddebugkey -storepass android -keypass android`. EAS builds show
+   the upload-key fingerprint under Project → Credentials.
+
+Two gotchas that bite on demo day. Consent screen stays in Testing mode until
+published, and only Test users you add can sign in, so add every demo account.
+And native Google sign-in does not work inside Expo Go (wrong signing cert).
+Use a dev build (`expo run:android` / `expo run:ios`), or fall back to dev
+sign-in on the emulator. `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` is the web client
+ID from step 1.
+
 ## Deploy
 
 - API → Azure App Service (or Render/Railway): set `DATABASE_URL`, JWT secrets,

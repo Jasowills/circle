@@ -70,16 +70,20 @@ export class AuthService {
    * token; we check the signature and audience here, then issue our own pair.
    */
   async loginWithIdToken(idToken: string): Promise<{ userId: string; tokens: TokenPair }> {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) {
+    // One GCP project holds three OAuth clients (web, iOS, Android). A token
+    // minted for the mobile app carries that platform's client ID as its
+    // audience, so every client ID has to be accepted here.
+    const audiences = [
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_IOS_CLIENT_ID,
+      process.env.GOOGLE_ANDROID_CLIENT_ID,
+    ].filter((a): a is string => !!a);
+    if (!audiences.length) {
       throw new ServiceUnavailableException('Google sign-in is not configured on the server');
     }
     let payload: { sub?: string; email?: string; name?: string; picture?: string };
     try {
-      const ticket = await new OAuth2Client(clientId).verifyIdToken({
-        idToken,
-        audience: clientId,
-      });
+      const ticket = await new OAuth2Client().verifyIdToken({ idToken, audience: audiences });
       payload = ticket.getPayload() ?? {};
     } catch {
       throw new UnauthorizedException('Invalid Google ID token');
