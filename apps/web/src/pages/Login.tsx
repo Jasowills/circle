@@ -27,7 +27,7 @@ export function Login() {
       <h1>
         Circle<span style={{ color: 'var(--accent)' }}>.</span>
       </h1>
-      <p className="muted">Small trusted circles, saving toward one shared goal. Balances are derived from an immutable ledger — never edited, only appended.</p>
+      <p className="muted">Save together toward one goal. Every contribution is on record for good.</p>
       <a className="btn" href={googleLoginUrl} style={{ width: '100%', textAlign: 'center' }}>
         Continue with Google
       </a>

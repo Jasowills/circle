@@ -38,7 +38,7 @@ export class AuthService {
     if (!user) {
       const byEmail = await this.prisma.user.findUnique({ where: { email: profile.email } });
       if (byEmail) {
-        // Same human, new Google link — attach googleId rather than duplicating.
+        // Same person, new Google link. Attach it instead of duplicating.
         user = await this.prisma.user.update({
           where: { id: byEmail.id },
           data: {
@@ -66,9 +66,8 @@ export class AuthService {
   }
 
   /**
-   * Mobile path: the Expo app completes Google sign-in natively (expo-auth-session)
-   * and hands us the ID token. We verify signature + audience server-side, then
-   * issue our own JWT pair — the backend never trusts client claims directly.
+   * Mobile sign-in. The app completes Google natively and hands us the ID
+   * token; we check the signature and audience here, then issue our own pair.
    */
   async loginWithIdToken(idToken: string): Promise<{ userId: string; tokens: TokenPair }> {
     const clientId = process.env.GOOGLE_CLIENT_ID;

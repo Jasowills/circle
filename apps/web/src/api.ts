@@ -51,7 +51,6 @@ export interface CircleSummary {
   progress: number;
   memberCount: number;
   activeMemberCount: number;
-  myStatus?: string;
 }
 
 export interface CircleDetail extends CircleSummary {

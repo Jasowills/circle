@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
@@ -37,16 +37,16 @@ export function CircleDetailPage() {
     const socket: Socket = io(API_URL, { transports: ['websocket'] });
     socket.on('connect', () => socket.emit('join', { circleId: id, token }));
     socket.on('contribution.created', (p: { userId: string; amount: string }) => {
-      pushFeed(`Contribution of ${p.amount} received`);
+      pushFeed(`New contribution of ${p.amount}`);
       qc.invalidateQueries({ queryKey: ['circle', id] });
       qc.invalidateQueries({ queryKey: ['ledger', id] });
     });
     socket.on('member.joined', (p: { userId: string; status: string }) => {
-      pushFeed(`Member joined (${p.status})`);
+      pushFeed(`A member joined (${p.status.replace('_', ' ')})`);
       qc.invalidateQueries({ queryKey: ['circle', id] });
     });
     socket.on('circle.status_changed', (p: { from: string; to: string }) => {
-      pushFeed(`Status: ${p.from} → ${p.to}`);
+      pushFeed(`Circle is now ${p.to.replace('_', ' ')}`);
       qc.invalidateQueries({ queryKey: ['circle', id] });
     });
     return () => {
@@ -61,7 +61,7 @@ export function CircleDetailPage() {
     mutationFn: (amt: number) =>
       api.post<{ replayed: boolean }>(`/circles/${id}/contribute`, { amount: amt, idempotencyKey: crypto.randomUUID() }),
     onSuccess: (r) => {
-      setMsg({ ok: true, text: r.replayed ? 'Duplicate ignored — original entry returned.' : 'Contribution recorded.' });
+      setMsg({ ok: true, text: r.replayed ? 'That one already went through. No double charge.' : 'Contribution saved.' });
       qc.invalidateQueries({ queryKey: ['circle', id] });
       qc.invalidateQueries({ queryKey: ['ledger', id] });
     },
@@ -80,7 +80,7 @@ export function CircleDetailPage() {
   const accept = useMutation({
     mutationFn: () => api.post(`/circles/${id}/accept`),
     onSuccess: () => {
-      setMsg({ ok: true, text: 'Welcome — you are now active.' });
+      setMsg({ ok: true, text: 'Invite accepted. You are now active.' });
       qc.invalidateQueries({ queryKey: ['circle', id] });
     },
     onError: (e: Error) => setMsg({ ok: false, text: e.message }),
@@ -92,7 +92,7 @@ export function CircleDetailPage() {
     onError: (e: Error) => setMsg({ ok: false, text: e.message }),
   });
 
-  const d = useMemo(() => detail.data, [detail.data]);
+  const d = detail.data;
   if (detail.isLoading) return <p className="muted">Loading circle…</p>;
   if (detail.error || !d) return <div className="error">{(detail.error as Error)?.message ?? 'Not found'}</div>;
 
@@ -143,7 +143,7 @@ export function CircleDetailPage() {
             </button>
           </div>
         </form>
-        <p className="muted" style={{ fontSize: 12 }}>Each tap generates a fresh idempotency key — network retries can never double-charge the ledger.</p>
+        <p className="muted" style={{ fontSize: 12 }}>Safe to retry. One tap can never charge you twice.</p>
       </div>
 
       <div className="card">
@@ -179,7 +179,7 @@ export function CircleDetailPage() {
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}><span className="live-dot" />Live feed</h3>
-        {feed.length === 0 && <p className="muted">Waiting for live events… keep this tab open and contribute from another.</p>}
+        {feed.length === 0 && <p className="muted">Live. New contributions and member updates show up here.</p>}
         <ul className="feed">
           {feed.map((f) => (
             <li key={f.id}>{f.text} <span className="muted">· {f.at.toLocaleTimeString()}</span></li>
@@ -188,7 +188,7 @@ export function CircleDetailPage() {
       </div>
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Ledger history (append-only audit trail)</h3>
+        <h3 style={{ marginTop: 0 }}>History</h3>
         <ul className="feed">
           {(ledger.data?.data ?? []).map((e) => (
             <li key={e.id}>
@@ -197,7 +197,7 @@ export function CircleDetailPage() {
             </li>
           ))}
         </ul>
-        <p className="muted" style={{ fontSize: 12 }}>{ledger.data?.total ?? 0} entries total. Corrections appear as new adjustment rows — entries are never edited.</p>
+        <p className="muted" style={{ fontSize: 12 }}>{ledger.data?.total ?? 0} entries total. Entries are permanent; fixes show up as new entries.</p>
       </div>
     </>
   );

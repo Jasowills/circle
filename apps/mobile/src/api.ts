@@ -1,9 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 
 /**
- * Same API as the web app, but tokens live in expo-secure-store
- * (per spec §2) instead of localStorage + httpOnly cookies.
- * The refresh token is sent in the body — never in a cookie jar.
+ * Same API as web, but tokens live in expo-secure-store instead of a cookie
+ * jar. The refresh token goes in the request body.
  */
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3000';
 
@@ -50,7 +49,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       }
     }
     await clearTokens();
-    throw new Error('Session expired — please sign in again');
+    throw new Error('Session expired. Please sign in again');
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -87,7 +86,6 @@ export interface CircleSummary {
   progress: number;
   memberCount: number;
   activeMemberCount: number;
-  myStatus?: string;
 }
 
 export interface CircleDetail extends CircleSummary {

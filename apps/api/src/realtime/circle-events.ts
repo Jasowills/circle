@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 /**
- * Decoupled event bus for circle-room broadcasts.
- * The WebSocket gateway registers itself here; the domain service emits
- * without knowing whether anyone is listening (keeps service unit-testable).
+ * Lets the domain service emit room broadcasts without importing the
+ * gateway. The gateway plugs itself in via register(); with nothing
+ * registered, broadcasting is a logged no-op.
  */
 @Injectable()
 export class CircleEvents {

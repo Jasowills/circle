@@ -9,9 +9,8 @@ import { s } from '../theme';
 WebBrowser.maybeCompleteAuthSession();
 
 /**
- * Google sign-in via expo-auth-session (native flow, no password anywhere).
- * Needs EXPO_PUBLIC_GOOGLE_*_CLIENT_ID values from Google Cloud Console —
- * until then the dev sign-in below works for local demo/emulator runs.
+ * Google sign-in through expo-auth-session. The client IDs come from Google
+ * Cloud Console; without them only dev sign-in works.
  */
 export function LoginScreen() {
   const { signIn } = useAuth();

@@ -33,7 +33,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
       socket = io(API_URL, { transports: ['websocket'] });
       socket.on('connect', () => socket?.emit('join', { circleId, token }));
       socket.on('contribution.created', (p: { amount: string }) => {
-        push(`Contribution of ${p.amount} received`);
+        push(`New contribution of ${p.amount}`);
         qc.invalidateQueries({ queryKey: ['circle', circleId] });
       });
       socket.on('member.joined', () => {
@@ -41,7 +41,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
         qc.invalidateQueries({ queryKey: ['circle', circleId] });
       });
       socket.on('circle.status_changed', (p: { from: string; to: string }) => {
-        push(`Status: ${p.from} → ${p.to}`);
+        push(`Circle is now ${p.to.replace('_', ' ')}`);
         qc.invalidateQueries({ queryKey: ['circle', circleId] });
       });
     });
@@ -59,7 +59,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
         idempotencyKey: Crypto.randomUUID(),
       }),
     onSuccess: (r) => {
-      setMsg(r.replayed ? 'Duplicate ignored — original kept.' : 'Contribution recorded.');
+      setMsg(r.replayed ? 'That one already went through. No double charge.' : 'Contribution saved.');
       qc.invalidateQueries({ queryKey: ['circle', circleId] });
     },
     onError: (e: Error) => setMsg(e.message),
@@ -126,7 +126,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
 
       <View style={s.card}>
         <Text style={s.h3}>● Live feed</Text>
-        {feed.length === 0 && <Text style={s.muted}>Waiting for live events…</Text>}
+        {feed.length === 0 && <Text style={s.muted}>Live. New contributions show up here.</Text>}
         {feed.map((f) => (
           <Text key={f.id} style={[s.text, { paddingVertical: 3 }]}>{f.text}</Text>
         ))}

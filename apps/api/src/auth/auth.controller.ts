@@ -47,7 +47,7 @@ export class AuthController {
     // Passport handles the redirect.
   }
 
-  /** Step 2: Google calls back here; we issue OUR JWT pair. */
+  /** Step 2: Google calls back here; we issue our JWT pair. */
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleCallback(@Req() req: Request, @Res() res: Response, @Query('format') format?: string) {
@@ -96,8 +96,7 @@ export class AuthController {
   @Post('logout')
   async logout(@Req() req: Request, @Body() body: { refreshToken?: string }, @Res({ passthrough: true }) res: Response) {
     await this.auth.logout(req.cookies?.refresh_token ?? body?.refreshToken);
-    const { maxAge: _omit, ...clearOpts } = refreshCookieOptions();
-    res.clearCookie('refresh_token', clearOpts);
+    res.clearCookie('refresh_token', refreshCookieOptions());
     return { ok: true };
   }
 }

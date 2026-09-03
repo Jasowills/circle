@@ -42,7 +42,7 @@ export class CirclesService {
       orderBy: { invitedAt: 'desc' },
     });
     return Promise.all(
-      memberships.map(async (m) => this.summarize(m.circle.id, m.status as string)),
+      memberships.map(async (m) => this.summarize(m.circle.id)),
     );
   }
 
@@ -91,7 +91,7 @@ export class CirclesService {
 
     const invitee = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (!invitee) {
-      throw new NotFoundException('No account with that email yet — they must sign in once first');
+      throw new NotFoundException('No account with that email yet. They need to sign in once first');
     }
     const existing = await this.prisma.circleMembership.findUnique({
       where: { circleId_userId: { circleId, userId: invitee.id } },
@@ -165,7 +165,7 @@ export class CirclesService {
     return this.ledger.history(circleId, page, limit);
   }
 
-  /** Used by the background job: recompute + transition without emitting duplicates. */
+  /** Background job entry point. No-ops when nothing changed. */
   async recompute(circleId: string): Promise<void> {
     await this.applyTransitions(circleId, 'scheduled_recompute');
   }
@@ -178,9 +178,7 @@ export class CirclesService {
     return rows.map((r) => r.id);
   }
 
-  // ---- internals ----
-
-  private async summarize(circleId: string, viewerStatus?: string) {
+  private async summarize(circleId: string) {
     const circle = await this.prisma.circle.findUnique({
       where: { id: circleId },
       include: { _count: { select: { memberships: true } } },
@@ -201,12 +199,12 @@ export class CirclesService {
       progress: goal > 0 ? Math.min(1, balance / goal) : 0,
       memberCount: circle._count.memberships,
       activeMemberCount: activeMembers,
-      myStatus: viewerStatus,
       createdAt: circle.createdAt,
     };
   }
 
-  /** Central transition runner — the ONLY place status writes happen (besides close). */
+  // Every automatic status change goes through here. close() is the only
+  // other place that writes status.
   private async applyTransitions(circleId: string, reason: string) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
     if (!circle || circle.status === 'closed' || circle.status === 'goal_reached') return;

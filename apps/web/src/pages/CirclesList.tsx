@@ -68,7 +68,7 @@ export function CirclesList() {
           </Link>
         ))}
       </div>
-      {circles?.length === 0 && <p className="muted">No circles yet — create one above, or ask a member to invite you.</p>}
+      {circles?.length === 0 && <p className="muted">No circles yet. Create one above, or ask a member to invite you.</p>}
     </>
   );
 }

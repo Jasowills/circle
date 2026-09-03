@@ -8,8 +8,8 @@ export interface CircleSnapshot {
 }
 
 /**
- * THE single place circle transitions are decided (spec §7).
- * Controllers/services call `evaluate()` — they never inline `if` checks.
+ * Status decisions live here and nowhere else. Call nextStatus() instead of
+ * inlining `if` checks in controllers or services.
  *
  *   forming --(>=2 active members)--> active
  *   active  --(balance >= goal)-----> goal_reached
@@ -19,7 +19,7 @@ export interface CircleSnapshot {
 export class CircleStateService {
   private readonly logger = new Logger('CircleState');
 
-  /** Pure decision function — trivially unit-testable, no DB. */
+  /** Pure function, no DB. Plain unit tests cover it. */
   nextStatus(
     snapshot: CircleSnapshot,
     activeMemberCount: number,

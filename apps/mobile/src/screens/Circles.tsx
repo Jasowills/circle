@@ -19,7 +19,7 @@ export function CirclesScreen({ onOpen }: { onOpen: (id: string) => void }) {
         keyExtractor={(c) => c.id}
         refreshing={isLoading}
         onRefresh={() => refetch()}
-        ListEmptyComponent={<Text style={s.muted}>No circles yet — create one on web, or ask for an invite.</Text>}
+        ListEmptyComponent={<Text style={s.muted}>No circles yet. Create one on web, or ask for an invite.</Text>}
         renderItem={({ item: c }) => (
           <TouchableOpacity style={s.card} onPress={() => onOpen(c.id)}>
             <View style={s.row}>

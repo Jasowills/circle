@@ -1,6 +1,6 @@
 import { IsEmail, IsNumber, IsOptional, IsPositive, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
-// Decimal(18,2) columns hold at most 9999999999999999.99 — reject anything
+// Decimal(18,2) columns hold at most 9999999999999999.99. Reject anything
 // bigger at the boundary with a 400 instead of a 500 from Postgres.
 // NOTE: no @Type(() => Number) here on purpose: implicit coercion turned
 // JSON `true` into amount 1. The API only accepts real JSON numbers.

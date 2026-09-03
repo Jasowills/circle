@@ -6,8 +6,7 @@ import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor() {
     super({
-      // Empty-string env (copied from .env.example) must fall back too — `||`, not `??`.
-      // Real Google flow needs actual credentials; dev-login covers local demo.
+      // .env ships empty strings, so fall back on those too (||, not ??).
       clientID: process.env.GOOGLE_CLIENT_ID || 'missing-client-id',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'missing-client-secret',
       callbackURL: process.env.GOOGLE_CALLBACK_URL ?? 'http://localhost:3000/auth/google/callback',

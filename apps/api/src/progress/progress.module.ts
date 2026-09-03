@@ -4,11 +4,9 @@ import { CirclesModule } from '../circles/circles.module';
 import { CirclesService } from '../circles/circles.service';
 
 /**
- * Background progress job (spec §9): every N minutes recompute derived
- * progress for all open circles and flip active → goal_reached when the
- * ledger sum has crossed the goal. Contributions ALSO transition
- * synchronously, so the demo never waits on the cron — this job is the
- * safety net (and the "background processing" talking point).
+ * Every couple of minutes, re-check open circles for transitions the
+ * write path may have missed. Contributions already transition
+ * synchronously, so this is a backstop, not the main mechanism.
  */
 @Injectable()
 export class ProgressService {
@@ -24,7 +22,9 @@ export class ProgressService {
       try {
         await this.circles.recompute(id);
       } catch (err) {
-        this.logger.error(JSON.stringify({ event: 'progress.recompute_error', circleId: id }));
+        this.logger.error(
+          JSON.stringify({ event: 'progress.recompute_error', circleId: id, error: String(err) }),
+        );
       }
     }
     this.logger.log(JSON.stringify({ event: 'progress.recompute_done', circles: ids.length }));

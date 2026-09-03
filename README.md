@@ -13,10 +13,10 @@ stored as a mutable column.
 
 **Platforms:** web (React + TS) + mobile (React Native + Expo) against one NestJS API.
 
-## The one detail worth knowing
+## The core idea
 
 `LedgerEntry` rows are **append-only**. There is no `ledgerEntry.update` / `ledgerEntry.delete`
-anywhere in the codebase — corrections are new `adjustment` rows. Contributions are
+anywhere in the codebase. Corrections are new `adjustment` rows. Contributions are
 **idempotent**: the client sends a UUID `idempotencyKey`; retries return the original row
 (`replayed: true`) instead of double-writing. The demo video shows both in Postman.
 
@@ -35,13 +35,13 @@ npm install
 npx prisma migrate dev        # creates tables
 npm run start:dev
 
-# 3. Web (http://localhost:5173) — new terminal
+# 3. Web (http://localhost:5173, new terminal)
 cd apps/web
 cp .env.example .env
 npm install
 npm run dev
 
-# 4. Mobile — new terminal
+# 4. Mobile (new terminal)
 cd apps/mobile
 cp .env.example .env
 npm install
@@ -54,7 +54,7 @@ The full Google OAuth flow needs a Google Cloud client ID/secret
 (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` in `apps/api/.env`, plus
 `EXPO_PUBLIC_GOOGLE_*_CLIENT_ID` in `apps/mobile/.env`). Until those are set:
 
-- `POST /auth/dev-login {email, name?}` issues a real JWT pair — the web login
+- `POST /auth/dev-login {email, name?}` issues a real JWT pair. The web login
   page and the mobile login screen both expose this. Every downstream path
   (circles, ledger, idempotency, state machine, WebSockets) is identical.
 - Google routes return a clear error instead of crashing when unconfigured.
@@ -63,7 +63,7 @@ Set `ALLOW_DEV_LOGIN=false` in production.
 
 ### API smoke test (Postman or curl)
 
-Import `apps/api/circle.postman_collection.json` — it runs the whole demo flow
+Import `apps/api/circle.postman_collection.json`. It runs the whole demo flow
 top to bottom with assertions, including the idempotency replay (requests 7–8)
 and the "exactly 2 entries despite 3 writes" ledger check (request 11).
 Or by hand:
@@ -102,10 +102,10 @@ WebSocket room `circle:<id>` (`join` with `{circleId, token}` →
 ```
 apps/api/src
   auth/       Google OAuth (passport) + ID-token verify (mobile) + JWT pair + rotation
-  circles/    CRUD, invite/accept, CircleStateService (the ONLY place transitions live)
-  ledger/     the ONLY ledger write path — idempotent append, no update/delete exists
+  circles/    CRUD, invite/accept, CircleStateService (status decisions live there)
+  ledger/     the only ledger write path: idempotent append, no update/delete
   realtime/   Socket.IO gateway (rooms circle:<id>) + decoupled CircleEvents bus
-  progress/   @Cron recompute job — safety net behind synchronous transitions
+  progress/   @Cron recompute job. Backstop behind synchronous transitions.
 apps/web      React + React Query + socket.io-client (full feature set incl. create)
 apps/mobile   Expo + same API (view, contribute, live feed; create lives on web)
 ```
@@ -116,7 +116,7 @@ apps/mobile   Expo + same API (view, contribute, live feed; create lives on web)
   writes; the cron job re-runs it every 2 min (`PROGRESS_CRON`) as a safety net.
 - **Observability:** structured JSON logs on the ledger write path (`ledger.appended`,
   `ledger.replayed`), transitions (`circle.status_changed`) and WS broadcasts
-  (`ws.broadcast`) — grep one `circleId` to trace any discrepancy end to end.
+  (`ws.broadcast`). Grep one `circleId` to trace any discrepancy end to end.
 - **Tests:** `npm test` in `apps/api` runs unit (state machine) + in-process e2e
   (auth → invite/accept → idempotent writes → live WS event → audit trail).
   Needs Postgres up and `ALLOW_DEV_LOGIN=true`.
@@ -129,9 +129,9 @@ apps/mobile   Expo + same API (view, contribute, live feed; create lives on web)
 2. **`accepted` vs `active`:** invites flip `invited → active` atomically on accept
    (passing through `accepted` semantically); the enum keeps `accepted` for a future
    two-step onboarding.
-3. **Refresh tokens are opaque** (hashed at rest, rotated on use) rather than JWTs —
-   simpler revocation story for a savings app.
-4. **No payment gateway / passwords / multi-currency / payouts** — explicitly out of
+3. **Refresh tokens are opaque** (hashed at rest, rotated on use) rather than JWTs.
+   That keeps revocation simple for a savings app.
+4. **No payment gateway / passwords / multi-currency / payouts.** Explicitly out of
    scope; contributions record intent against the ledger.
 
 ## Deploy
