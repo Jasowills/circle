@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Circle",
+    "slug": "circle-savings",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "circle",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.circle.savings" },
+    "android": { "package": "com.circle.savings" }
+  }
+}

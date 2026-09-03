@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CircleStatus {
+  forming
+  active
+  goal_reached
+  closed
+}
+
+enum MembershipRole {
+  creator
+  member
+}
+
+enum MembershipStatus {
+  invited
+  accepted
+  active
+}
+
+enum LedgerType {
+  contribution
+  adjustment
+}
+
+model User {
+  id        String   @id @default(uuid())
+  googleId  String   @unique
+  email     String   @unique
+  name      String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+
+  memberships CircleMembership[]
+  ledgerEntries LedgerEntry[]
+  refreshTokens RefreshToken[]
+  createdCircles Circle[] @relation("CreatedCircles")
+}
+
+model Circle {
+  id          String       @id @default(uuid())
+  name        String
+  goalAmount  Decimal      @db.Decimal(18, 2)
+  currency    String       @default("NGN")
+  status      CircleStatus @default(forming)
+  createdById String
+  createdBy   User         @relation("CreatedCircles", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+
+  memberships CircleMembership[]
+  ledgerEntries LedgerEntry[]
+}
+
+model CircleMembership {
+  id       String           @id @default(uuid())
+  circleId String
+  circle   Circle           @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     MembershipRole   @default(member)
+  status   MembershipStatus @default(invited)
+  invitedAt DateTime        @default(now())
+  joinedAt  DateTime?
+
+  @@unique([circleId, userId])
+  @@index([userId])
+}
+
+model LedgerEntry {
+  id             String     @id @default(uuid())
+  circleId       String
+  circle         Circle     @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount         Decimal    @db.Decimal(18, 2)
+  type           LedgerType @default(contribution)
+  idempotencyKey String
+  createdAt      DateTime   @default(now())
+
+  // Idempotency: a retried request with the same key returns the original row.
+  @@unique([circleId, userId, idempotencyKey])
+  @@index([circleId])
+  @@index([circleId, userId])
+}
+
+// NOTE: LedgerEntry has NO update/delete path anywhere in the codebase.
+// Corrections are new `adjustment` rows, never edits. This is append-only by convention
+// (enforced in code review + the absence of any prisma.ledgerEntry.update/delete call).
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

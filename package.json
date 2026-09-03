@@ -1,0 +1,13 @@
+{
+  "name": "circle",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Circle — event-sourced group savings platform (Abbey Mortgage Bank challenge)",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "test:api": "npm run test --workspace=apps/api"
+  }
+}
