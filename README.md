@@ -63,6 +63,11 @@ Set `ALLOW_DEV_LOGIN=false` in production.
 
 ### API smoke test (Postman or curl)
 
+Import `apps/api/circle.postman_collection.json` — it runs the whole demo flow
+top to bottom with assertions, including the idempotency replay (requests 7–8)
+and the "exactly 2 entries despite 3 writes" ledger check (request 11).
+Or by hand:
+
 ```bash
 A=$(curl -s -X POST localhost:3000/auth/dev-login -H 'Content-Type: application/json' \
   -d '{"email":"ada@example.com"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
@@ -112,6 +117,9 @@ apps/mobile   Expo + same API (view, contribute, live feed; create lives on web)
 - **Observability:** structured JSON logs on the ledger write path (`ledger.appended`,
   `ledger.replayed`), transitions (`circle.status_changed`) and WS broadcasts
   (`ws.broadcast`) — grep one `circleId` to trace any discrepancy end to end.
+- **Tests:** `npm test` in `apps/api` runs unit (state machine) + in-process e2e
+  (auth → invite/accept → idempotent writes → live WS event → audit trail).
+  Needs Postgres up and `ALLOW_DEV_LOGIN=true`.
 
 ## Documented trade-offs
 

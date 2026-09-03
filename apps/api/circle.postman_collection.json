@@ -1,0 +1,302 @@
+{
+  "info": {
+    "name": "Circle \u2014 demo flow",
+    "description": "End-to-end demo for the video: auth \u2192 circle \u2192 invite/accept \u2192 contribute \u2192 IDEMPOTENCY REPLAY \u2192 goal_reached \u2192 ledger audit. Run top to bottom against a local API (http://localhost:3000). Requests 7 and 8 are the money shot: same idempotencyKey twice, second returns replayed:true with no duplicate.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "tokenA",
+      "value": ""
+    },
+    {
+      "key": "tokenB",
+      "value": ""
+    },
+    {
+      "key": "circleId",
+      "value": ""
+    },
+    {
+      "key": "idemKey",
+      "value": "11111111-2222-4333-8444-555555555555"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Dev login \u2014 Ada (creator)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/dev-login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"ada@example.com\",\"name\":\"Ada\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 + tokens', () => { const j = pm.response.json(); pm.expect(j.accessToken).to.be.a('string'); pm.collectionVariables.set('tokenA', j.accessToken); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Dev login \u2014 Bayo (member)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/auth/dev-login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"bayo@example.com\",\"name\":\"Bayo\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 + tokens', () => { const j = pm.response.json(); pm.collectionVariables.set('tokenB', j.accessToken); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Create circle (status: forming)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/circles",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Mortgage deposit\",\"goalAmount\":1000}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('forming', () => { const j = pm.response.json(); pm.expect(j.status).to.eql('forming'); pm.collectionVariables.set('circleId', j.id); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Invite Bayo by email",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/circles/{{circleId}}/invite",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"bayo@example.com\"}"
+        }
+      }
+    },
+    {
+      "name": "5. Bayo accepts (circle flips forming \u2192 active)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/circles/{{circleId}}/accept",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenB}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('active', () => pm.expect(pm.response.json().status).to.eql('active'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. List my circles (derived balances)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/circles",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "7. Contribute 400 (first attempt \u2014 replayed:false)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/circles/{{circleId}}/contribute",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"amount\":400,\"idempotencyKey\":\"{{idemKey}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('fresh write', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(false); pm.expect(Number(j.circle.balance)).to.eql(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. SAME request again (replay \u2014 replayed:true, balance unchanged)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/circles/{{circleId}}/contribute",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"amount\":400,\"idempotencyKey\":\"{{idemKey}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('no duplicate', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(true); pm.expect(Number(j.circle.balance)).to.eql(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Bayo contributes 600 (crosses goal \u2192 goal_reached)",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/circles/{{circleId}}/contribute",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenB}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"amount\":600,\"idempotencyKey\":\"{{$guid}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('goal_reached', () => pm.expect(pm.response.json().circle.status).to.eql('goal_reached'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Circle detail (balance, progress, members)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/circles/{{circleId}}",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "11. Ledger history (append-only audit trail)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/circles/{{circleId}}/ledger?limit=20",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('exactly 2 entries despite 3 writes', () => pm.expect(pm.response.json().total).to.eql(2));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
