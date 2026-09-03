@@ -23,12 +23,14 @@ class DevLoginDto {
   name?: string;
 }
 
-function refreshCookieOptions(): { httpOnly: boolean; secure: boolean; sameSite: 'lax' | 'strict'; path: string; maxAge: number } {
+function refreshCookieOptions(): { httpOnly: boolean; secure: boolean; sameSite: 'lax' | 'none'; path: string; maxAge: number } {
   const isProd = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
     secure: isProd, // httpOnly + secure on web per spec; plain http locally
-    sameSite: 'lax',
+    // Deployed web (Static Web Apps) and API (App Service) are cross-origin:
+    // fetch() will not attach a SameSite=Lax cookie, so prod needs None.
+    sameSite: isProd ? 'none' : 'lax',
     path: '/auth',
     maxAge: Number(process.env.JWT_REFRESH_TTL_DAYS ?? 30) * 24 * 3600 * 1000,
   };
@@ -94,7 +96,8 @@ export class AuthController {
   @Post('logout')
   async logout(@Req() req: Request, @Body() body: { refreshToken?: string }, @Res({ passthrough: true }) res: Response) {
     await this.auth.logout(req.cookies?.refresh_token ?? body?.refreshToken);
-    res.clearCookie('refresh_token', { path: '/auth' });
+    const { maxAge: _omit, ...clearOpts } = refreshCookieOptions();
+    res.clearCookie('refresh_token', clearOpts);
     return { ok: true };
   }
 }
