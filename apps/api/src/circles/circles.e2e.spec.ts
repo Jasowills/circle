@@ -90,7 +90,7 @@ describe('Circle e2e (demo flow)', () => {
     const acc = await request(baseUrl)
       .post(`/circles/${circleId}/accept`)
       .set('Authorization', `Bearer ${tokenB}`);
-    expect(acc.status).toBe(201);
+    expect(acc.status).toBe(200);
     expect(acc.body.status).toBe('active');
   });
 
@@ -119,7 +119,7 @@ describe('Circle e2e (demo flow)', () => {
         .post(`/circles/${circleId}/contribute`)
         .set('Authorization', `Bearer ${tokenA}`)
         .send({ amount: 400, idempotencyKey: key });
-      expect(first.status).toBe(201);
+      expect(first.status).toBe(200);
       expect(first.body.replayed).toBe(false);
 
       // The money shot: identical retry → same entry, no duplicate, no event.
@@ -127,7 +127,7 @@ describe('Circle e2e (demo flow)', () => {
         .post(`/circles/${circleId}/contribute`)
         .set('Authorization', `Bearer ${tokenA}`)
         .send({ amount: 400, idempotencyKey: key });
-      expect(retry.status).toBe(201);
+      expect(retry.status).toBe(200);
       expect(retry.body.replayed).toBe(true);
       expect(retry.body.entry.id).toBe(first.body.entry.id);
 
@@ -143,7 +143,7 @@ describe('Circle e2e (demo flow)', () => {
       .post(`/circles/${circleId}/contribute`)
       .set('Authorization', `Bearer ${tokenB}`)
       .send({ amount: 600, idempotencyKey: randomUUID() });
-    expect(push.status).toBe(201);
+    expect(push.status).toBe(200);
     expect(push.body.circle.status).toBe('goal_reached');
 
     const detail = await request(baseUrl)
