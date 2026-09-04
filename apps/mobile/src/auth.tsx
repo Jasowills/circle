@@ -14,6 +14,7 @@ interface AuthCtx {
   /** True when the account was just created and still needs a display name. */
   setupRequired: boolean;
   signIn: (accessToken: string, refreshToken: string, isNew: boolean) => Promise<void>;
+  reloadUser: () => Promise<void>;
   completeSetup: () => void;
   signOut: () => Promise<void>;
 }
@@ -23,6 +24,7 @@ const Ctx = createContext<AuthCtx>({
   ready: false,
   setupRequired: false,
   signIn: async () => {},
+  reloadUser: async () => {},
   completeSetup: () => {},
   signOut: async () => {},
 });
@@ -53,6 +55,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const completeSetup = useCallback(() => setSetupRequired(false), []);
 
+  const reloadUser = useCallback(async () => {
+    const me = await api.get<User>('/me');
+    setUser(me);
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       const rt = await getRefreshToken();
@@ -65,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSetupRequired(false);
   }, []);
 
-  return <Ctx.Provider value={{ user, ready, setupRequired, signIn, completeSetup, signOut }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, ready, setupRequired, signIn, reloadUser, completeSetup, signOut }}>{children}</Ctx.Provider>;
 }
 
 export const useAuth = () => useContext(Ctx);

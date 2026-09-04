@@ -93,6 +93,29 @@ export const api = {
   },
 };
 
+export interface Person {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+}
+
+export interface PersonProfile {
+  user: Person;
+  isSelf: boolean;
+  sharedCircles: { id: string; name: string; status: string }[];
+  inviteTargets: { id: string; name: string; status: string }[];
+}
+
+export interface LedgerEntry {
+  id: string;
+  userId: string;
+  user: { name: string };
+  amount: string;
+  type: string;
+  createdAt: string;
+}
+
 export interface CircleSummary {
   id: string;
   name: string;

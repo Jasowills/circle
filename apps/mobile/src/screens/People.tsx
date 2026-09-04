@@ -1,0 +1,67 @@
+import { useState } from 'react';
+import { FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { api, type Person } from '../api';
+import { useTheme } from '../theme';
+import { Avatar } from '../Avatar';
+
+export function PeopleScreen({ onOpenProfile }: { onOpenProfile: (id: string) => void }) {
+  const { s, palette } = useTheme();
+  const [q, setQ] = useState('');
+
+  const { data, isFetching } = useQuery({
+    queryKey: ['people', q],
+    queryFn: () => api.get<Person[]>(`/users/search?q=${encodeURIComponent(q)}`),
+    enabled: q.trim().length >= 2,
+  });
+
+  return (
+    <View style={s.screen}>
+      <Text style={[s.h1, { fontSize: 26, marginBottom: 4 }]}>People</Text>
+      <Text style={[s.muted, { marginBottom: 12 }]}>Anyone on Circle. Open a profile to invite them.</Text>
+      <View style={[s.row, { gap: 8, backgroundColor: palette.panel2, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.border }]}>
+        <Ionicons name="search-outline" size={18} color={palette.muted} />
+        <TextInput
+          style={[{ flex: 1, color: palette.text, paddingVertical: 12, fontSize: 15 }]}
+          value={q}
+          onChangeText={setQ}
+          placeholder="Search name or email (min 2 letters)"
+          placeholderTextColor={palette.placeholder}
+          autoCapitalize="none"
+        />
+        {q.length > 0 ? (
+          <TouchableOpacity onPress={() => setQ('')} hitSlop={8}>
+            <Ionicons name="close-circle-outline" size={18} color={palette.muted} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <FlatList
+        data={q.trim().length >= 2 ? (data ?? []) : []}
+        keyExtractor={(p) => p.id}
+        keyboardShouldPersistTaps="handled"
+        style={{ marginTop: 12 }}
+        ListEmptyComponent={
+          q.trim().length >= 2 && !isFetching ? (
+            <Text style={[s.muted, { marginTop: 16 }]}>Nobody matches "{q}". Try another spelling.</Text>
+          ) : q.trim().length < 2 ? (
+            <Text style={[s.muted, { marginTop: 16 }]}>Type at least 2 letters to search the platform.</Text>
+          ) : null
+        }
+        renderItem={({ item: p }) => (
+          <TouchableOpacity style={[s.card, { marginBottom: 8 }]} onPress={() => onOpenProfile(p.id)}>
+            <View style={[s.row, { justifyContent: 'flex-start', gap: 12 }]}>
+              <Avatar name={p.name} avatarUrl={p.avatarUrl} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.text}>{p.name}</Text>
+                <Text style={s.muted}>{p.email}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={palette.faint} />
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+}

@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import * as Crypto from 'expo-crypto';
 import { API_URL, api, getAccessToken, type CircleDetail } from '../api';
 import { useTheme } from '../theme';
+import { Avatar } from '../Avatar';
 
 interface FeedItem {
   id: string;
@@ -132,10 +133,13 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
       <View style={s.card}>
         <Text style={s.h3}>Members</Text>
         {d.members.map((m) => (
-          <View key={m.userId} style={[s.row, { paddingVertical: 4 }]}>
-            <Text style={s.text}>{m.user.name} <Text style={s.muted}>· {m.role} · {m.status}</Text></Text>
+          <TouchableOpacity key={m.userId} style={[s.row, { paddingVertical: 6, justifyContent: 'flex-start', gap: 10 }]}>
+            <Avatar name={m.user.name} avatarUrl={m.user.avatarUrl} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.text}>{m.user.name} <Text style={s.muted}>· {m.role} · {m.status}</Text></Text>
+            </View>
             <Text style={s.text}>{Number(m.balance).toLocaleString()}</Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
 

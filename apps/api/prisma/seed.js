@@ -21,7 +21,7 @@ const PEOPLE = [
 ];
 
 // Leftover demo accounts from earlier seeds (old @example.com family).
-const LEGACY = ['ada@circle.com', 'bayo@circle.com', 'chiamaka@circle.com', 'emeka@circle.com', 'funmi@circle.com'];
+const LEGACY = ['ada@example.com', 'bayo@example.com', 'chiamaka@example.com', 'emeka@example.com', 'funmi@example.com'];
 
 // [email, daysAgo] — amounts chosen so Circle A lands at 70% of 5,000,000.
 const LEDGER_A = [
