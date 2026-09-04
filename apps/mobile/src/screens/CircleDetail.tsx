@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
 import * as Crypto from 'expo-crypto';
 import { API_URL, api, getAccessToken, type CircleDetail } from '../api';
-import { s } from '../theme';
+import { useTheme } from '../theme';
 
 interface FeedItem {
   id: string;
@@ -13,6 +13,7 @@ interface FeedItem {
 
 export function CircleDetailScreen({ circleId }: { circleId: string }) {
   const qc = useQueryClient();
+  const { s, palette } = useTheme();
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [amount, setAmount] = useState('1000');
   const [msg, setMsg] = useState<string | null>(null);
@@ -73,14 +74,24 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
 
   const d = detail.data;
   if (detail.isLoading) return <View style={s.screen}><Text style={s.muted}>Loading…</Text></View>;
-  if (detail.error || !d) return <View style={s.screen}><Text style={s.error}>{(detail.error as Error)?.message ?? 'Not found'}</Text></View>;
+  if (detail.error || !d) {
+    return (
+      <View style={s.screen}>
+        <View style={s.error}>
+          <Text style={s.errorText}>{(detail.error as Error)?.message ?? 'Not found'}</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={s.screen}>
       <View style={s.card}>
         <View style={s.row}>
           <Text style={s.h2}>{d.name}</Text>
-          <Text style={s.pill}>{d.status.replace('_', ' ')}</Text>
+          <Text style={[s.pill, (d.status === 'active' || d.status === 'goal_reached') && s.pillSolid]}>
+            {d.status.replace('_', ' ')}
+          </Text>
         </View>
         <View style={s.bar}>
           <View style={[s.barFill, { width: `${Math.round(d.progress * 100)}%` }]} />
@@ -91,7 +102,11 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
         <Text style={s.muted}>Your share: {Number(d.myBalance).toLocaleString()}</Text>
       </View>
 
-      {msg ? <Text style={s.card}>{msg}</Text> : null}
+      {msg ? (
+        <View style={s.card}>
+          <Text style={s.text}>{msg}</Text>
+        </View>
+      ) : null}
 
       {d.myMembership.status === 'invited' && (
         <View style={s.card}>
@@ -104,7 +119,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
 
       <View style={s.card}>
         <Text style={s.h3}>Contribute</Text>
-        <TextInput style={s.input} value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor="#667" />
+        <TextInput style={s.input} value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor={palette.placeholder} />
         <TouchableOpacity
           style={s.btn}
           disabled={contribute.isPending || d.myMembership.status !== 'active'}

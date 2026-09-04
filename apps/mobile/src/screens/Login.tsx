@@ -1,23 +1,44 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Dimensions, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { api } from '../api';
 import { useAuth } from '../auth';
-import { s } from '../theme';
+import { useTheme } from '../theme';
+import { Logo } from '../Logo';
 
 WebBrowser.maybeCompleteAuthSession();
 
-/**
- * Google sign-in through expo-auth-session. The client IDs come from Google
- * Cloud Console; without them only dev sign-in works.
- */
+const SLIDES = [
+  {
+    img: 'https://images.pexels.com/photos/3830752/pexels-photo-3830752.jpeg?auto=compress&cs=tinysrgb&w=1260',
+    title: 'Save together.',
+    body: 'Form a trusted circle and chip toward one shared goal, side by side.',
+  },
+  {
+    img: 'https://images.pexels.com/photos/34134899/pexels-photo-34134899.jpeg?auto=compress&cs=tinysrgb&w=1260',
+    title: 'One goal, every eye on it.',
+    body: 'Mortgage deposit, rent, fees. The balance is always visible to the group.',
+  },
+  {
+    img: 'https://images.pexels.com/photos/4630669/pexels-photo-4630669.jpeg?auto=compress&cs=tinysrgb&w=1260',
+    title: 'Every tap counts.',
+    body: 'Contribute in seconds. Retries never charge you twice.',
+  },
+];
+
 export function LoginScreen() {
   const { signIn } = useAuth();
+  const { s, palette } = useTheme();
+  const [slide, setSlide] = useState(0);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [showDev, setShowDev] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const pager = useRef<ScrollView>(null);
+  const width = Dimensions.get('window').width - 32;
+  const last = slide === SLIDES.length - 1;
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
@@ -26,8 +47,7 @@ export function LoginScreen() {
   });
 
   // Native Google sign-in only works in a dev/production build. Inside Expo Go
-  // the redirect goes somewhere Google never approved, so the button would
-  // just land on an "access blocked" page. Dev sign-in below covers Go.
+  // the redirect goes somewhere Google never approved, so dev sign-in covers Go.
   const inExpoGo = Constants.appOwnership === 'expo';
 
   useEffect(() => {
@@ -59,31 +79,85 @@ export function LoginScreen() {
     }
   };
 
+  const goTo = (i: number) => {
+    setSlide(i);
+    pager.current?.scrollTo({ x: i * width, animated: true });
+  };
+
   return (
     <ScrollView style={s.screen}>
-      <View style={[s.card, { marginTop: 48 }]}>
-        <Text style={s.h1}>Circle.</Text>
-        <Text style={s.muted}>Save together toward one goal. Every contribution is on record for good.</Text>
-        {inExpoGo ? (
-          <Text style={s.muted}>Google sign-in needs a dev build. Use dev sign-in below while running in Expo Go.</Text>
-        ) : (
-          <TouchableOpacity
-            style={s.btn}
-            disabled={!request}
-            onPress={() => promptAsync().catch((e: Error) => setErr(e.message))}
-          >
-            <Text style={s.btnText}>Continue with Google</Text>
-          </TouchableOpacity>
-        )}
-        {err ? <Text style={s.error}>{err}</Text> : null}
-        <Text style={s.label}>Email</Text>
-        <TextInput style={s.input} value={email} onChangeText={setEmail} placeholder="ada@example.com" placeholderTextColor="#667" autoCapitalize="none" keyboardType="email-address" />
-        <Text style={s.label}>Name (optional)</Text>
-        <TextInput style={s.input} value={name} onChangeText={setName} placeholder="Ada" placeholderTextColor="#667" />
-        <TouchableOpacity style={s.btnGhost} onPress={devLogin}>
-          <Text style={s.btnGhostText}>Dev sign-in</Text>
-        </TouchableOpacity>
+      <ScrollView
+        ref={pager}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => setSlide(Math.round(e.nativeEvent.contentOffset.x / width))}
+      >
+        {SLIDES.map((item) => (
+          <View key={item.title} style={[s.hero, { width, height: 340 }]}>
+            <Image source={{ uri: item.img }} style={s.heroImage} />
+            <View style={s.heroCaption}>
+              <Text style={s.heroTitle}>{item.title}</Text>
+              <Text style={s.heroBody}>{item.body}</Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+      <View style={s.dots}>
+        {SLIDES.map((item, i) => (
+          <View key={item.title} style={[s.dot, i === slide && s.dotOn]} />
+        ))}
       </View>
+
+      {!last ? (
+        <View style={[s.row, { marginTop: 4 }]}>
+          <TouchableOpacity style={s.btnGhost} onPress={() => goTo(SLIDES.length - 1)}>
+            <Text style={s.btnGhostText}>Skip</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.btn} onPress={() => goTo(slide + 1)}>
+            <Text style={s.btnText}>Next</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={s.card}>
+          <View style={[s.row, { justifyContent: 'flex-start', gap: 10, marginBottom: 12 }]}>
+            <Logo size={30} />
+            <Text style={[s.h2, { marginBottom: 0 }]}>Circle</Text>
+          </View>
+          {inExpoGo ? (
+            <Text style={s.muted}>Google sign-in needs a dev build. Use dev sign-in below while running in Expo Go.</Text>
+          ) : (
+            <TouchableOpacity
+              style={s.btn}
+              disabled={!request}
+              onPress={() => promptAsync().catch((e: Error) => setErr(e.message))}
+            >
+              <Text style={s.btnText}>Continue with Google</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={s.btnGhost} onPress={() => setShowDev(!showDev)}>
+            <Text style={s.btnGhostText}>Trouble signing in?</Text>
+          </TouchableOpacity>
+          {showDev && (
+            <View>
+              <Text style={s.muted}>No Google credentials handy? Use dev sign-in below.</Text>
+              {err ? (
+                <View style={s.error}>
+                  <Text style={s.errorText}>{err}</Text>
+                </View>
+              ) : null}
+              <Text style={s.label}>Email</Text>
+              <TextInput style={s.input} value={email} onChangeText={setEmail} placeholder="ada@example.com" placeholderTextColor={palette.placeholder} autoCapitalize="none" keyboardType="email-address" />
+              <Text style={s.label}>Name (optional)</Text>
+              <TextInput style={s.input} value={name} onChangeText={setName} placeholder="Ada" placeholderTextColor={palette.placeholder} />
+              <TouchableOpacity style={s.btn} onPress={devLogin}>
+                <Text style={s.btnText}>Dev sign-in</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+      <Text style={[s.faint, { textAlign: 'center', marginVertical: 12 }]}>Photos: Pexels</Text>
     </ScrollView>
   );
 }
