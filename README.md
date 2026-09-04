@@ -61,6 +61,20 @@ The full Google OAuth flow needs a Google Cloud client ID/secret
 
 Set `ALLOW_DEV_LOGIN=false` in production.
 
+### Demo seed (realistic data)
+
+```bash
+cd apps/api
+DATABASE_URL="postgresql://circle:circle@localhost:5432/circle" node prisma/seed.js
+```
+
+Seeds five demo accounts plus `jasowills01@gmail.com` (you): an active
+₦5,000,000 mortgage circle at 70% with six weeks of contribution history, a
+completed ₦2,000,000 land circle at goal, and a forming emergency fund with
+your invite still pending. Log in as `jasowills01@gmail.com` (Google on web,
+dev sign-in on mobile) to see it all. Re-running the seed wipes and recreates
+these accounts.
+
 ### API smoke test (Postman or curl)
 
 Import `apps/api/circle.postman_collection.json`. It runs the whole demo flow
@@ -123,9 +137,8 @@ apps/mobile   Expo + same API (view, contribute, live feed; create lives on web)
 
 ## Documented trade-offs
 
-1. **Circle creation UI is web-only.** Mobile covers auth, list, detail, contribute,
-   live feed (per the brief's "as simple as possible"); creation from mobile is a
-   small follow-up since it hits the same `POST /circles`.
+1. **Circle creation works on both platforms.** Web has the full form; mobile has
+   a focused name + goal screen (invite/management stay richest on web).
 2. **`accepted` vs `active`:** invites flip `invited → active` atomically on accept
    (passing through `accepted` semantically); the enum keeps `accepted` for a future
    two-step onboarding.
