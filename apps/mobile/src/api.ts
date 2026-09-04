@@ -26,7 +26,7 @@ export async function clearTokens(): Promise<void> {
 
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const token = await getAccessToken();
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await timedFetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   if (res.status === 401 && retry && token) {
     const refreshToken = await getRefreshToken();
     if (refreshToken) {
-      const r = await fetch(`${API_URL}/auth/refresh`, {
+      const r = await timedFetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
@@ -58,6 +58,19 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   return (await res.json()) as T;
 }
 
+/** fetch that gives up after TIMEOUT_MS instead of hanging forever. */
+async function timedFetch(url: string, init: RequestInit): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } catch (e) {
+    throw new Error(`Could not reach the API at ${API_URL} (${e instanceof Error ? e.message : 'network error'})`);
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export const api = {
   get: <T>(p: string) => request<T>(p),
   post: <T>(p: string, body?: unknown) =>
@@ -65,7 +78,7 @@ export const api = {
   patch: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   postPublic: async <T>(p: string, body?: unknown): Promise<T> => {
-    const res = await fetch(`${API_URL}${p}`, {
+    const res = await timedFetch(`${API_URL}${p}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
