@@ -563,6 +563,7 @@ export class CirclesService {
       memberCount: circle._count.memberships,
       activeMemberCount: activeMembers,
       createdAt: circle.createdAt,
+      currentCycle: await this.currentCycleView(circleId),
     };
   }
 

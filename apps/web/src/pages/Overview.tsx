@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, type CircleSummary, type LedgerPage } from '../api';
-import { statusLabel } from '../format';
+import { money, statusLabel, timeAgo } from '../format';
 import { useAuth } from '../auth';
 import { I } from '../icons';
 import { AreaChart, Donut, CycleTimeline } from '../charts';
@@ -71,9 +71,12 @@ export function Overview() {
   const members = list.reduce((s, c) => s + c.activeMemberCount, 0);
   const avg = list.length ? list.reduce((s, c) => s + c.progress, 0) / list.length : 0;
 
-  // Cumulative savings curve, bucketed by day.
+  // Cumulative curve over the trailing 14 days (ledgers are sampled per
+  // circle, so this is a recent window, not all-time history).
+  const cutoff = Date.now() - 14 * 86400000;
   const byDay = new Map<string, number>();
   for (const a of activity.data ?? []) {
+    if (+new Date(a.at) < cutoff) continue;
     const day = a.at.slice(0, 10);
     byDay.set(day, (byDay.get(day) ?? 0) + a.amount);
   }
@@ -124,7 +127,7 @@ export function Overview() {
           <div className="card">
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <h3>Growth</h3>
-              <span className="muted" style={{ fontSize: 12 }}>Avg progress {Math.round(avg * 100)}%</span>
+              <span className="muted" style={{ fontSize: 12 }}>Last 14 days · avg progress {Math.round(avg * 100)}%</span>
             </div>
             <AreaChart data={curve} />
           </div>
@@ -133,9 +136,16 @@ export function Overview() {
             <h3>Latest activity</h3>
             <ul className="feed">
               {(activity.data ?? []).map((a) => (
-                <li key={a.id} onClick={() => nav(`/circles/${a.circleId}`)} style={{ cursor: 'pointer' }}>
-                  {a.userName} · {a.circleName} · <strong>+₦{a.amount.toLocaleString()}</strong>
-                  <span className="muted"> · {new Date(a.at).toLocaleString()}</span>
+                <li
+                  key={a.id}
+                  onClick={() => nav(`/circles/${a.circleId}`)}
+                  onKeyDown={(e) => e.key === 'Enter' && nav(`/circles/${a.circleId}`)}
+                  tabIndex={0}
+                  role="button"
+                  style={{ cursor: 'pointer' }}
+                >
+                  {a.userName} · {a.circleName} · <strong>+{money(a.amount)}</strong>
+                  <span className="muted"> · {timeAgo(a.at)}</span>
                 </li>
               ))}
             </ul>
@@ -146,6 +156,11 @@ export function Overview() {
         </div>
 
         <div>
+          <div className="card">
+            <h3>Rotation</h3>
+            <RotationPreview />
+          </div>
+
           {attention.length > 0 && (
             <div className="card">
               <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -153,13 +168,25 @@ export function Overview() {
                 <I.bell size={17} />
               </div>
               <ul className="feed">
-                {attention.map((n) => (
-                  <li key={n.id} onClick={() => n.circleId && nav(`/circles/${n.circleId}`)} style={{ cursor: n.circleId ? 'pointer' : 'default' }}>
+                {attention.slice(0, 2).map((n) => (
+                  <li
+                    key={n.id}
+                    onClick={() => n.circleId && nav(`/circles/${n.circleId}`)}
+                    onKeyDown={(e) => e.key === 'Enter' && n.circleId && nav(`/circles/${n.circleId}`)}
+                    tabIndex={n.circleId ? 0 : undefined}
+                    role={n.circleId ? 'button' : undefined}
+                    style={{ cursor: n.circleId ? 'pointer' : 'default' }}
+                  >
                     {n.title}
                     <div className="muted" style={{ fontSize: 12 }}>{n.body}</div>
                   </li>
                 ))}
               </ul>
+              {attention.length > 2 && (
+                <Link to="/notifications" style={{ fontSize: 13, fontWeight: 700 }}>
+                  View all {attention.length} →
+                </Link>
+              )}
             </div>
           )}
 
@@ -180,7 +207,8 @@ export function Overview() {
           )}
 
           <div className="card">
-            <h3>Who's carrying</h3>
+            <h3>Recent contributors</h3>
+            <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>Last 14 days, across your circles.</p>
             <Donut slices={mix} />
           </div>
 
@@ -194,10 +222,17 @@ export function Overview() {
               <h3>Hall of fame</h3>
               <ul className="feed">
                 {list.filter((c) => c.status === 'completed' || c.status === 'goal_reached').map((c) => (
-                  <li key={c.id} onClick={() => nav(`/circles/${c.id}`)} style={{ cursor: 'pointer' }}>
+                  <li
+                    key={c.id}
+                    onClick={() => nav(`/circles/${c.id}`)}
+                    onKeyDown={(e) => e.key === 'Enter' && nav(`/circles/${c.id}`)}
+                    tabIndex={0}
+                    role="button"
+                    style={{ cursor: 'pointer' }}
+                  >
                     {c.name}
                     <div className="muted" style={{ fontSize: 12 }}>
-                      Finished at ₦{Number(c.balance).toLocaleString()} · {c.activeMemberCount} members
+                      Finished at {money(Number(c.balance))} · {c.activeMemberCount} members
                     </div>
                   </li>
                 ))}
@@ -211,20 +246,31 @@ export function Overview() {
 }
 
 function RotationPreview() {
+  const nav = useNavigate();
   const { data: circles } = useQuery({
     queryKey: ['circles'],
     queryFn: () => api.get<CircleSummary[]>('/circles'),
   });
-  const first = (circles ?? []).find((c) => c.contributionAmount);
+  const urgent = (circles ?? [])
+    .filter((c) => c.currentCycle)
+    .sort((a, b) => +new Date(a.currentCycle!.endsAt) - +new Date(b.currentCycle!.endsAt))[0];
   const cycles = useQuery({
-    queryKey: ['cycles-preview', first?.id],
-    queryFn: () => api.get<{ cycleNumber: number; recipient: { name: string }; status: string }[]>(`/circles/${first?.id}/cycles`),
-    enabled: !!first,
+    queryKey: ['cycles-preview', urgent?.id],
+    queryFn: () => api.get<{ cycleNumber: number; recipient: { name: string }; status: string }[]>(`/circles/${urgent?.id}/cycles`),
+    enabled: !!urgent,
   });
-  if (!first) return <p className="muted" style={{ fontSize: 13 }}>No rotation circles yet. Start an Ajo to see the payout order.</p>;
+  if (!urgent) return <p className="muted" style={{ fontSize: 13 }}>No rotation circles yet. Start an Ajo to see the payout order.</p>;
+  const cc = urgent.currentCycle!;
+  const days = Math.ceil((+new Date(cc.endsAt) - Date.now()) / 86400000);
   return (
     <>
-      <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>{first.name}</p>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          Next payout: <strong style={{ color: 'var(--text)' }}>{cc.recipient.name}</strong>
+          {' '}· {days <= 0 ? 'due now' : `in ${days}d`} · {urgent.name}
+        </p>
+        <Link to={`/circles/${urgent.id}`} style={{ fontSize: 13, fontWeight: 700 }}>Open →</Link>
+      </div>
       <CycleTimeline cycles={(cycles.data ?? []).map((c) => ({ cycleNumber: c.cycleNumber, recipientName: c.recipient.name, status: c.status }))} />
     </>
   );

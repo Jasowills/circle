@@ -89,7 +89,7 @@ form.inline > div { flex: 1; }
 .stats .stat:nth-child(4) { animation-delay: 0.21s; }
 button:active, .btn:active { transform: scale(0.98); }
 @media (prefers-reduced-motion: reduce) {
-  .card, .live-dot { animation: none; }
+  .card, .live-dot, .tstep.now .tdot, .auth-visual img.crossfade { animation: none; }
   .progress > div { transition: none; }
 }
 
@@ -97,7 +97,7 @@ button:active, .btn:active { transform: scale(0.98); }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
 .stat { background: var(--panel); border: none; border-radius: var(--radius); padding: 18px; }
 .stat .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-.stat .v { font-family: var(--serif); font-size: 30px; font-weight: 650; }
+.stat .v { font-family: var(--serif); font-size: 30px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .chart-ink { color: var(--text); }
 .chart-track { color: var(--border); }
 .chart-dot { fill: var(--money); }
@@ -124,7 +124,7 @@ button:active, .btn:active { transform: scale(0.98); }
 /* Detail hero */
 .hero { padding: 28px; }
 .hero h1 { margin: 0 0 4px; font-size: 38px; }
-.hero-big { font-family: var(--serif); font-size: 44px; font-weight: 650; margin: 8px 0 0; }
+.hero-big { font-family: var(--serif); font-size: 44px; font-weight: 650; margin: 8px 0 0; font-variant-numeric: tabular-nums; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .tabs button { background: transparent; color: var(--muted); border: none; border-radius: 0; padding: 12px 16px; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }

@@ -1,16 +1,16 @@
 import { Image, Text, View } from 'react-native';
 import { useTheme } from './theme';
 
-/** Photo when available, initials on a monochrome disc otherwise. */
+/** Photo when available, initials on a theme disc otherwise. */
 export function Avatar({ name, avatarUrl, size = 34 }: { name: string; avatarUrl?: string | null; size?: number }) {
-  const { s } = useTheme();
+  const { palette } = useTheme();
   if (avatarUrl) {
     return <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
   }
   const initials = name.split(' ').map((w) => w.charAt(0)).join('').slice(0, 2).toUpperCase();
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: size * 0.38 }}>{initials}</Text>
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: palette.panel2, borderWidth: 1, borderColor: palette.border, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: palette.text, fontWeight: '700', fontSize: size * 0.38 }}>{initials}</Text>
     </View>
   );
 }

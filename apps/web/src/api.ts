@@ -101,6 +101,15 @@ export interface CircleSummary {
   activeMemberCount: number;
   contributionAmount?: number | null;
   targetMembers?: number | null;
+  currentCycle?: {
+    id: string;
+    cycleNumber: number;
+    totalCycles: number;
+    recipient: { id: string; name: string };
+    targetPot: number;
+    collected: number;
+    endsAt: string;
+  } | null;
 }
 
 export interface CircleDetail extends CircleSummary {

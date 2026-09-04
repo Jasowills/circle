@@ -37,10 +37,10 @@ function makeStyles(t: Palette) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg, padding: 16 },
     card: { backgroundColor: t.panel, borderWidth: 0, borderRadius: 4, padding: 16, marginBottom: 12 },
-    h1: { color: t.text, fontSize: 28, fontWeight: '800' },
-    h2: { color: t.text, fontSize: 20, fontWeight: '700', marginBottom: 4 },
+    h1: { color: t.text, fontSize: 28, fontWeight: '800', fontVariant: ['tabular-nums'] },
+    h2: { color: t.text, fontSize: 20, fontWeight: '700', marginBottom: 4, fontVariant: ['tabular-nums'] },
     h3: { color: t.text, fontSize: 16, fontWeight: '700', marginBottom: 8 },
-    text: { color: t.text, fontSize: 14 },
+    text: { color: t.text, fontSize: 14, fontVariant: ['tabular-nums'] },
     muted: { color: t.muted, fontSize: 13 },
     faint: { color: t.faint, fontSize: 12 },
     input: { backgroundColor: t.panel2, borderColor: t.border, borderWidth: 1, color: t.text, borderRadius: 4, padding: 12, fontSize: 15, marginTop: 4 },
