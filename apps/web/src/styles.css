@@ -137,6 +137,9 @@ button:active, .btn:active { transform: scale(0.98); }
 .auth-visual img.crossfade { animation: fadein 1.2s ease both; }
 @keyframes fadein { from { opacity: 0.2; } to { opacity: 1; } }
 .auth-veil { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.1) 55%); }
+[data-theme="light"] .auth-veil { background: linear-gradient(to top, rgba(250,249,246,0.92), rgba(250,249,246,0.08) 55%); }
+[data-theme="light"] .auth-brand, [data-theme="light"] .auth-caption { color: #0a0a0a; }
+[data-theme="light"] .auth-caption p { color: rgba(10,10,10,0.7); }
 .auth-brand { position: absolute; top: 28px; left: 32px; display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 800; font-size: 18px; }
 .auth-caption { position: absolute; left: 32px; right: 32px; bottom: 40px; color: #fff; }
 .auth-caption h2 { font-size: 40px; margin: 0 0 8px; }
