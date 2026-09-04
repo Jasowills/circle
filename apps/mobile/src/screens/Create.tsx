@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { api, type CircleSummary } from '../api';
@@ -22,7 +22,11 @@ export function CreateScreen({ onCreated, onCancel }: { onCreated: (id: string) 
   });
 
   return (
-    <View style={s.screen}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+    <ScrollView style={s.screen} contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
       <View style={s.card}>
         <View style={[s.row, { marginBottom: 4 }]}>
           <Text style={s.h2}>New circle</Text>
@@ -48,6 +52,7 @@ export function CreateScreen({ onCreated, onCancel }: { onCreated: (id: string) 
           <Text style={s.btnText}>{create.isPending ? 'Creating…' : 'Create circle'}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

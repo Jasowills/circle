@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dimensions, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
@@ -94,7 +94,16 @@ export function LoginScreen() {
   };
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ flexGrow: 1, paddingTop: 32, paddingBottom: 16 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+    >
+    <ScrollView
+      style={s.screen}
+      contentContainerStyle={{ flexGrow: 1, paddingTop: 32, paddingBottom: 16 }}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={{ flex: 1, minHeight: 24 }} />
       <ScrollView
         ref={pager}
@@ -196,5 +205,6 @@ export function LoginScreen() {
       <Text style={[s.faint, { textAlign: 'center', marginVertical: 12 }]}>Photos: Pexels</Text>
       <View style={{ flex: 2, minHeight: 16 }} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

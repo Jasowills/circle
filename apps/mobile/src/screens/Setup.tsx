@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { api, getAccessToken, getRefreshToken } from '../api';
 import { useAuth } from '../auth';
 import { useTheme } from '../theme';
@@ -29,7 +29,11 @@ export function SetupScreen() {
   };
 
   return (
-    <View style={[s.screen, { justifyContent: 'center' }]}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+    <ScrollView style={s.screen} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
       <View style={s.card}>
         <View style={[s.row, { justifyContent: 'flex-start', gap: 10, marginBottom: 4 }]}>
           <Logo size={30} />
@@ -50,6 +54,7 @@ export function SetupScreen() {
           <Text style={s.btnText}>{saving ? 'Saving…' : 'Start saving'}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
