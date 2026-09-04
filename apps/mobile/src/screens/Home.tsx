@@ -39,7 +39,7 @@ export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: 
   });
 
   return (
-    <ScrollView style={s.screen}>
+    <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 32 }}>
       {user ? <Greeting name={user.name} /> : null}
       <Text style={[s.muted, { marginTop: 4, marginBottom: 12 }]}>
         {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}

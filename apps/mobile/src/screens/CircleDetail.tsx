@@ -109,7 +109,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
   }
 
   return (
-    <ScrollView style={s.screen}>
+    <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 32 }}>
       <View style={s.card}>
         <View style={s.row}>
           <Text style={s.h2}>{d.name}</Text>

@@ -33,7 +33,7 @@ export function ProfileScreen({ userId, onOpenCircle }: { userId: string; onOpen
   const { user, isSelf, sharedCircles, inviteTargets } = data;
 
   return (
-    <ScrollView style={s.screen}>
+    <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 32 }}>
       <View style={[s.card, { alignItems: 'center', paddingVertical: 24 }]}>
         <Avatar name={user.name} avatarUrl={user.avatarUrl} size={72} />
         <Text style={[s.h2, { marginTop: 12, marginBottom: 0 }]}>{user.name}</Text>

@@ -42,7 +42,7 @@ export function WalletScreen() {
   const d = wallet.data;
 
   return (
-    <ScrollView style={s.screen}>
+    <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 32 }}>
       <Text style={[s.h1, { fontSize: 26, marginBottom: 12 }]}>Wallet</Text>
 
       <View style={s.card}>
