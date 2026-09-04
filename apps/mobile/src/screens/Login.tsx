@@ -118,8 +118,8 @@ export function LoginScreen() {
       </View>
 
       {!last ? (
-        <View style={[s.row, { marginTop: 4 }]}>
-          <TouchableOpacity style={s.btnGhost} onPress={() => goTo(SLIDES.length - 1)}>
+        <View style={[s.row, { marginTop: 4, gap: 12 }]}>
+          <TouchableOpacity style={[s.btnGhost, { flex: 1, marginTop: 0, padding: 13 }]} onPress={() => goTo(SLIDES.length - 1)}>
             <Text style={s.btnGhostText}>Skip</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[s.btn, { flex: 1, marginTop: 0 }]} onPress={() => goTo(slide + 1)}>
