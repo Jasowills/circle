@@ -32,6 +32,7 @@ export function LoginScreen() {
   const { signIn } = useAuth();
   const { s, palette } = useTheme();
   const [slide, setSlide] = useState(0);
+  const [mode, setMode] = useState<'join' | 'signin'>('join');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   // In Expo Go there is no Google button, so the dev form is the sign-in.
@@ -60,8 +61,8 @@ export function LoginScreen() {
         return;
       }
       api
-        .postPublic<{ accessToken: string; refreshToken: string }>('/auth/google/id-token', { idToken })
-        .then((t) => signIn(t.accessToken, t.refreshToken))
+        .postPublic<{ accessToken: string; refreshToken: string; isNew: boolean }>('/auth/google/id-token', { idToken })
+        .then((t) => signIn(t.accessToken, t.refreshToken, t.isNew))
         .catch((e: Error) => setErr(e.message));
     } else if (response?.type === 'error') {
       setErr('Google sign-in failed');
@@ -71,11 +72,11 @@ export function LoginScreen() {
   const devLogin = async () => {
     setErr(null);
     try {
-      const t = await api.postPublic<{ accessToken: string; refreshToken: string }>('/auth/dev-login', {
+      const t = await api.postPublic<{ accessToken: string; refreshToken: string; isNew: boolean }>('/auth/dev-login', {
         email,
         name: name || undefined,
       });
-      await signIn(t.accessToken, t.refreshToken);
+      await signIn(t.accessToken, t.refreshToken, t.isNew);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Login failed');
     }
@@ -134,6 +135,17 @@ export function LoginScreen() {
             <Logo size={30} />
             <Text style={[s.h2, { marginBottom: 0 }]}>Circle</Text>
           </View>
+          <View style={[s.row, { gap: 12, marginBottom: 4 }]}>
+            <TouchableOpacity style={[mode === 'join' ? s.btn : s.btnGhost, { flex: 1, marginTop: 0 }]} onPress={() => setMode('join')}>
+              <Text style={mode === 'join' ? s.btnText : s.btnGhostText}>Join</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[mode === 'signin' ? s.btn : s.btnGhost, { flex: 1, marginTop: 0 }]} onPress={() => setMode('signin')}>
+              <Text style={mode === 'signin' ? s.btnText : s.btnGhostText}>Sign in</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={[s.muted, { marginBottom: 4 }]}>
+            {mode === 'join' ? 'New here? Create your account with Google in seconds.' : 'Welcome back. Use the Google account you joined with.'}
+          </Text>
           {inExpoGo ? (
             <Text style={s.muted}>Running in Expo Go, so sign in below. Google needs a dev build.</Text>
           ) : (

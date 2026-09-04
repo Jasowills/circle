@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './auth';
 import { ThemeProvider, useTheme } from './theme';
 import { Logo } from './Logo';
 import { Login, AuthCallback } from './pages/Login';
+import { Setup } from './pages/Setup';
 import { CirclesList } from './pages/CirclesList';
 import { CircleDetailPage } from './pages/CircleDetail';
 
@@ -33,6 +34,7 @@ function Shell() {
       </div>
       <Routes>
         <Route path="/" element={<CirclesList />} />
+        <Route path="/setup" element={<Setup />} />
         <Route path="/circles/:id" element={<CircleDetailPage />} />
       </Routes>
     </>

@@ -6,18 +6,20 @@ import { AuthProvider, useAuth } from './src/auth';
 import { ThemeProvider, useTheme } from './src/theme';
 import { Logo } from './src/Logo';
 import { LoginScreen } from './src/screens/Login';
+import { SetupScreen } from './src/screens/Setup';
 import { CirclesScreen } from './src/screens/Circles';
 import { CircleDetailScreen } from './src/screens/CircleDetail';
 
 const qc = new QueryClient();
 
 function Root() {
-  const { user, ready, signOut } = useAuth();
+  const { user, ready, setupRequired, signOut } = useAuth();
   const { s, mode, toggle, palette } = useTheme();
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (!ready) return <View style={s.screen}><Text style={s.muted}>Loading…</Text></View>;
   if (!user) return <LoginScreen />;
+  if (setupRequired) return <SetupScreen />;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.bg }}>

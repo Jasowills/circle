@@ -29,6 +29,7 @@ export function Login() {
   const { signIn } = useAuth();
   const nav = useNavigate();
   const [slide, setSlide] = useState(0);
+  const [mode, setMode] = useState<'join' | 'signin'>('join');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [showDev, setShowDev] = useState(false);
@@ -39,9 +40,9 @@ export function Login() {
     e.preventDefault();
     setErr(null);
     try {
-      const r = await api.post<{ accessToken: string }>('/auth/dev-login', { email, name: name || undefined });
+      const r = await api.post<{ accessToken: string; isNew: boolean }>('/auth/dev-login', { email, name: name || undefined });
       await signIn(r.accessToken);
-      nav('/');
+      nav(r.isNew ? '/setup' : '/');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Login failed');
     }
@@ -84,6 +85,19 @@ export function Login() {
             <Logo size={30} />
             <strong style={{ fontSize: 18 }}>Circle</strong>
           </div>
+          <div className="row" style={{ marginBottom: 12 }}>
+            <button className={mode === 'join' ? '' : 'ghost'} onClick={() => setMode('join')} style={{ flex: 1 }}>
+              Join
+            </button>
+            <button className={mode === 'signin' ? '' : 'ghost'} onClick={() => setMode('signin')} style={{ flex: 1 }}>
+              Sign in
+            </button>
+          </div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            {mode === 'join'
+              ? 'New here? Create your account with Google in seconds.'
+              : 'Welcome back. Sign in with the Google account you joined with.'}
+          </p>
           <a className="btn" href={googleLoginUrl} style={{ width: '100%', textAlign: 'center' }}>
             Continue with Google
           </a>
@@ -121,12 +135,13 @@ export function AuthCallback() {
   const nav = useNavigate();
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('accessToken');
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('accessToken');
     if (!t) {
       setErr('Sign-in did not return a token. Please try again.');
       return;
     }
-    signIn(t).then(() => nav('/')).catch((e: Error) => setErr(e.message));
+    signIn(t).then(() => nav(params.get('isNew') === '1' ? '/setup' : '/')).catch((e: Error) => setErr(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   if (err) return <div className="error">{err}</div>;

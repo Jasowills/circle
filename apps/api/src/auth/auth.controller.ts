@@ -55,31 +55,31 @@ export class AuthController {
     if (!profile?.email || !profile?.googleId) {
       throw new UnauthorizedException('Google sign-in failed');
     }
-    const { tokens } = await this.auth.loginWithGoogle(profile);
+    const { tokens, isNew } = await this.auth.loginWithGoogle(profile);
     res.cookie('refresh_token', tokens.refreshToken, refreshCookieOptions());
     // Mobile (Expo) can't easily read the redirect chain's cookies → allow ?format=json.
     if (format === 'json') {
-      return res.json({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken });
+      return res.json({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew });
     }
     const webAppUrl = process.env.WEB_APP_URL ?? 'http://localhost:5173';
-    return res.redirect(`${webAppUrl}/auth/callback?accessToken=${tokens.accessToken}`);
+    return res.redirect(`${webAppUrl}/auth/callback?accessToken=${tokens.accessToken}&isNew=${isNew ? '1' : '0'}`);
   }
 
   /** Dev-only login for local demo/tests without Google credentials. */
   @Post('dev-login')
   async devLogin(@Body() dto: DevLoginDto, @Res({ passthrough: true }) res: Response) {
-    const { tokens } = await this.auth.devLogin(dto.email, dto.name);
+    const { tokens, isNew } = await this.auth.devLogin(dto.email, dto.name);
     res.cookie('refresh_token', tokens.refreshToken, refreshCookieOptions());
-    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
   }
 
   /** Mobile Google sign-in: verify the Expo-supplied ID token, issue our JWT pair. */
   @Post('google/id-token')
   async googleIdToken(@Body() body: { idToken?: string }, @Res({ passthrough: true }) res: Response) {
     if (!body?.idToken) throw new UnauthorizedException('Missing ID token');
-    const { tokens } = await this.auth.loginWithIdToken(body.idToken);
+    const { tokens, isNew } = await this.auth.loginWithIdToken(body.idToken);
     res.cookie('refresh_token', tokens.refreshToken, refreshCookieOptions());
-    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
   }
 
   /** Rotate the refresh token (reads httpOnly cookie first, falls back to body for mobile). */

@@ -64,11 +64,31 @@ describe('Circle e2e (demo flow)', () => {
   it('logs in two users', async () => {
     const a = await request(baseUrl).post('/auth/dev-login').send({ email: emailA, name: 'E2E Ada' });
     expect(a.status).toBe(201);
+    expect(a.body.isNew).toBe(true);
     tokenA = a.body.accessToken;
     const b = await request(baseUrl).post('/auth/dev-login').send({ email: emailB, name: 'E2E Bayo' });
     expect(b.status).toBe(201);
+    expect(b.body.isNew).toBe(true);
     tokenB = b.body.accessToken;
     expect(tokenA).not.toEqual(tokenB);
+    const again = await request(baseUrl).post('/auth/dev-login').send({ email: emailA });
+    expect(again.body.isNew).toBe(false);
+  });
+
+  it('completes profile setup via PATCH /me', async () => {
+    const ok = await request(baseUrl)
+      .patch('/me')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ name: 'E2E Ada Updated' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.name).toBe('E2E Ada Updated');
+    const bad = await request(baseUrl)
+      .patch('/me')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ name: '' });
+    expect(bad.status).toBe(400);
+    const anon = await request(baseUrl).patch('/me').send({ name: 'x' });
+    expect(anon.status).toBe(401);
   });
 
   it('creates a forming circle and flips it active on second member accept', async () => {

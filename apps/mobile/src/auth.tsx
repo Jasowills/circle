@@ -11,20 +11,26 @@ interface User {
 interface AuthCtx {
   user: User | null;
   ready: boolean;
-  signIn: (accessToken: string, refreshToken: string) => Promise<void>;
+  /** True when the account was just created and still needs a display name. */
+  setupRequired: boolean;
+  signIn: (accessToken: string, refreshToken: string, isNew: boolean) => Promise<void>;
+  completeSetup: () => void;
   signOut: () => Promise<void>;
 }
 
 const Ctx = createContext<AuthCtx>({
   user: null,
   ready: false,
+  setupRequired: false,
   signIn: async () => {},
+  completeSetup: () => {},
   signOut: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const [setupRequired, setSetupRequired] = useState(false);
 
   useEffect(() => {
     getAccessToken()
@@ -38,11 +44,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
-  const signIn = useCallback(async (accessToken: string, refreshToken: string) => {
+  const signIn = useCallback(async (accessToken: string, refreshToken: string, isNew: boolean) => {
     await saveTokens(accessToken, refreshToken);
     const me = await api.get<User>('/me');
     setUser(me);
+    setSetupRequired(isNew);
   }, []);
+
+  const completeSetup = useCallback(() => setSetupRequired(false), []);
 
   const signOut = useCallback(async () => {
     try {
@@ -53,9 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     await clearTokens();
     setUser(null);
+    setSetupRequired(false);
   }, []);
 
-  return <Ctx.Provider value={{ user, ready, signIn, signOut }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, ready, setupRequired, signIn, completeSetup, signOut }}>{children}</Ctx.Provider>;
 }
 
 export const useAuth = () => useContext(Ctx);

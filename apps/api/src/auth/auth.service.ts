@@ -33,8 +33,9 @@ export class AuthService {
   ) {}
 
   /** Find-or-create a user from a verified Google profile, then issue our own JWT pair. */
-  async loginWithGoogle(profile: GoogleProfile): Promise<{ userId: string; tokens: TokenPair }> {
+  async loginWithGoogle(profile: GoogleProfile): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
     let user = await this.prisma.user.findUnique({ where: { googleId: profile.googleId } });
+    let isNew = false;
     if (!user) {
       const byEmail = await this.prisma.user.findUnique({ where: { email: profile.email } });
       if (byEmail) {
@@ -56,20 +57,21 @@ export class AuthService {
             avatarUrl: profile.avatarUrl,
           },
         });
+        isNew = true;
       }
     }
     this.logger.log(
       JSON.stringify({ event: 'auth.login', userId: user.id, email: user.email }),
     );
     const tokens = await this.issueTokens(user.id);
-    return { userId: user.id, tokens };
+    return { userId: user.id, tokens, isNew };
   }
 
   /**
    * Mobile sign-in. The app completes Google natively and hands us the ID
    * token; we check the signature and audience here, then issue our own pair.
    */
-  async loginWithIdToken(idToken: string): Promise<{ userId: string; tokens: TokenPair }> {
+  async loginWithIdToken(idToken: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
     // One GCP project holds three OAuth clients (web, iOS, Android). A token
     // minted for the mobile app carries that platform's client ID as its
     // audience, so every client ID has to be accepted here.
@@ -98,12 +100,13 @@ export class AuthService {
   }
 
   /** Dev-only login (ALLOW_DEV_LOGIN=true): no Google round-trip, for local demo/tests. */
-  async devLogin(email: string, name?: string): Promise<{ userId: string; tokens: TokenPair }> {
+  async devLogin(email: string, name?: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
     if (process.env.ALLOW_DEV_LOGIN !== 'true') {
       throw new UnauthorizedException('Dev login is disabled');
     }
     const normalized = email.trim().toLowerCase();
     let user = await this.prisma.user.findUnique({ where: { email: normalized } });
+    let isNew = false;
     if (!user) {
       user = await this.prisma.user.create({
         data: {
@@ -112,10 +115,11 @@ export class AuthService {
           name: name?.trim() || normalized.split('@')[0],
         },
       });
+      isNew = true;
     }
     this.logger.log(JSON.stringify({ event: 'auth.dev_login', userId: user.id }));
     const tokens = await this.issueTokens(user.id);
-    return { userId: user.id, tokens };
+    return { userId: user.id, tokens, isNew };
   }
 
   async refresh(refreshToken: string): Promise<TokenPair> {
