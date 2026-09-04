@@ -34,7 +34,9 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
-  if (res.status === 401 && retry && token) {
+  // A wiped access token must not brick a session while a valid refresh
+  // token still exists: always attempt refresh on a 401.
+  if (res.status === 401 && retry) {
     try {
       await silentRefresh();
       return request<T>(path, init, false);

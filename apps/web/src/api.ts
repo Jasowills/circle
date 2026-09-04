@@ -16,7 +16,11 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}), ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
     credentials: 'include',
   });
-  if (res.status === 401 && retry && getToken()) {
+  // A failed refresh used to wipe the access token, which permanently bricked
+  // the session: later reloads skipped refresh (no token) even with a valid
+  // cookie sitting right there. So: always attempt the cookie refresh on a
+  // 401. No cookie/token just 401s again and lands on /login as before.
+  if (res.status === 401 && retry) {
     // One shared refresh: parallel 401s (every page fires several) must not
     // stampede rotation, or the losers read 401 and nuke a live session.
     try {
