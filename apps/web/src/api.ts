@@ -2,6 +2,14 @@ export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
 const TOKEN_KEY = 'circle.accessToken';
 
+// Auth trace: run `localStorage.setItem('circle.debugAuth','1')` in the
+// console, reload, and watch each 401/refresh/redirect decision play out.
+function trace(...args: unknown[]) {
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('circle.debugAuth') === '1') {
+    console.log('[auth]', ...args);
+  }
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -21,12 +29,13 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   // cookie sitting right there. So: always attempt the cookie refresh on a
   // 401. No cookie/token just 401s again and lands on /login as before.
   if (res.status === 401 && retry) {
-    // One shared refresh: parallel 401s (every page fires several) must not
-    // stampede rotation, or the losers read 401 and nuke a live session.
+    trace(path, '-> 401, hadToken=', !!getToken());
     try {
       await silentRefresh();
+      trace(path, '-> recovered via refresh');
       return request<T>(path, init, false);
-    } catch {
+    } catch (e) {
+      trace(path, '-> refresh failed, redirecting to /login:', e instanceof Error ? e.message : e);
       setToken(null);
       window.location.href = '/login';
       throw new Error('Session expired');
@@ -43,15 +52,19 @@ let inflight: Promise<string> | null = null;
 
 function silentRefresh(): Promise<string> {
   if (!inflight) {
+    trace('refresh start (leader)');
     inflight = (async () => {
       const r = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
-      if (!r.ok) throw new Error('refresh failed');
+      if (!r.ok) throw new Error(`refresh failed (${r.status})`);
       const { accessToken } = (await r.json()) as { accessToken: string };
       setToken(accessToken);
+      trace('refresh ok');
       return accessToken;
     })().finally(() => {
       inflight = null;
     });
+  } else {
+    trace('refresh shared (follower)');
   }
   return inflight;
 }

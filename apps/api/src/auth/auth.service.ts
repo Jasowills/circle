@@ -154,7 +154,16 @@ export class AuthService {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: hashToken(refreshToken) },
     });
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+    if (!stored) {
+      this.logger.warn(JSON.stringify({ event: 'auth.refresh_rejected', reason: 'unknown_token' }));
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+    if (stored.revokedAt || stored.expiresAt < new Date()) {
+      this.logger.warn(JSON.stringify({
+        event: 'auth.refresh_rejected',
+        reason: stored.revokedAt ? 'revoked' : 'expired',
+        userId: stored.userId,
+      }));
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
     // Rotate: revoke the used token, issue a fresh pair (limits replay window).
