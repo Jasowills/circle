@@ -75,6 +75,37 @@ export class WalletService {
     }
   }
 
+  /** Demo withdrawal. Same idempotency discipline; never overdraws. */
+  async withdraw(userId: string, amount: number, idempotencyKey: string) {
+    if (!Number.isFinite(amount) || amount < 100) {
+      throw new BadRequestException('Withdrawal must be at least ₦100');
+    }
+    const wallet = await this.getWallet(userId);
+    if ((await this.balance(wallet.id)) < amount) {
+      throw new BadRequestException('Insufficient wallet balance.');
+    }
+    const key = idempotencyKey.trim();
+    const existing = await this.prisma.walletTransaction.findUnique({
+      where: { walletId_idempotencyKey: { walletId: wallet.id, idempotencyKey: key } },
+    });
+    if (existing) return { entry: this.present(existing), replayed: true };
+    try {
+      const created = await this.prisma.walletTransaction.create({
+        data: { walletId: wallet.id, amount: -amount, type: 'withdraw', idempotencyKey: key },
+      });
+      this.logger.log(JSON.stringify({ event: 'wallet.withdrew', userId, amount }));
+      return { entry: this.present(created), replayed: false };
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002') {
+        const winner = await this.prisma.walletTransaction.findUnique({
+          where: { walletId_idempotencyKey: { walletId: wallet.id, idempotencyKey: key } },
+        });
+        if (winner) return { entry: this.present(winner), replayed: true };
+      }
+      throw err;
+    }
+  }
+
   async history(walletId: string, page: number, limit: number) {
     const safePage = Math.max(1, Math.floor(page) || 1);
     const safeLimit = Math.min(100, Math.max(1, Math.floor(limit) || 20));

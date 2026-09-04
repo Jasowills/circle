@@ -99,6 +99,7 @@ model CircleCycle {
 enum WalletTxType {
   demo_fund
   fund
+  withdraw
   circle_contribution
   circle_payout
 }

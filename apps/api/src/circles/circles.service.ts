@@ -141,6 +141,7 @@ export class CirclesService {
       targetMembers: circle.targetMembers,
       cycleLengthDays: circle.cycleLengthDays,
       contributionsPerWeek: circle.contributionsPerWeek,
+      rotationMode: circle.rotationMode,
       currentCycle: await this.currentCycleView(circleId),
       myMembership: { role: mine.role, status: mine.status },
       myAutopilot: { contribute: mine.autoContribute, collect: mine.autoCollect },
@@ -595,8 +596,33 @@ export class CirclesService {
     }
   }
 
-  /** Circle just went active: shuffle members into a locked payout order and
-   *  open cycle 1. Fairness you can point at: the draw happens once, here. */
+  /** Creator sets the draw mode and, for manual mode, the exact payout order.
+   *  Only while forming; the order locks the moment the circle fills. */
+  async setRotation(circleId: string, userId: string, mode: string, order: string[]) {
+    const circle = await this.requireCircle(circleId);
+    const mine = await this.prisma.circleMembership.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (!mine || mine.role !== 'creator' || mine.status !== 'active') {
+      throw new ForbiddenException('Only the creator sets the rotation');
+    }
+    if (circle.status !== 'forming') throw new BadRequestException('Rotation locks once the circle fills');
+    if (mode !== 'random_draw' && mode !== 'manual') {
+      throw new BadRequestException('mode is random_draw or manual');
+    }
+    if (mode === 'manual') {
+      const active = (
+        await this.prisma.circleMembership.findMany({ where: { circleId, status: 'active' }, select: { userId: true } })
+      ).map((m) => m.userId);
+      const same = order.length === active.length && order.every((id) => active.includes(id));
+      if (!same) throw new BadRequestException('Order must list every active member exactly once');
+    }
+    const updated = await this.prisma.circle.update({
+      where: { id: circleId },
+      data: { rotationMode: mode, rotationOrder: mode === 'manual' ? order : [] },
+    });
+    return { rotationMode: updated.rotationMode, rotationOrder: updated.rotationOrder };
+  }
   private async lockRotation(circleId: string): Promise<void> {
     const existing = await this.prisma.circleCycle.count({ where: { circleId } });
     if (existing > 0) return;
@@ -606,10 +632,19 @@ export class CirclesService {
       where: { circleId, status: 'active' },
       select: { userId: true },
     });
-    const order = members.map((m) => m.userId);
-    for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [order[i], order[j]] = [order[j], order[i]];
+    const activeIds = members.map((m) => m.userId);
+    let order: string[];
+    if (circle.rotationMode === 'manual') {
+      const ok = circle.rotationOrder.length === activeIds.length &&
+        circle.rotationOrder.every((id) => activeIds.includes(id));
+      if (!ok) throw new BadRequestException('Set a complete rotation order before the circle fills');
+      order = [...circle.rotationOrder];
+    } else {
+      order = [...activeIds];
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
     }
     const perCycle = Number(circle.contributionAmount) * 7 * order.length;
     await this.prisma.circle.update({ where: { id: circleId }, data: { rotationOrder: order } });

@@ -11,7 +11,7 @@ import { Logo } from './src/Logo';
 import { LoginScreen } from './src/screens/Login';
 import { SetupScreen } from './src/screens/Setup';
 import { HomeScreen } from './src/screens/Home';
-import { NotificationsScreen, SEEN_KEY, type Notice } from './src/screens/Notifications';
+import { NotificationsScreen, SEEN_KEY, isUnread, type Notice } from './src/screens/Notifications';
 import { WalletScreen } from './src/screens/Wallet';
 import { CreateScreen } from './src/screens/Create';
 import { PeopleScreen } from './src/screens/People';
@@ -39,6 +39,7 @@ function Root() {
   const [tab, setTab] = useState<Tab>('home');
   const [stack, setStack] = useState<Push[]>([]);
   const [seenAt, setSeenAt] = useState<string | null>(null);
+  const [readIds, setReadIds] = useState<string[]>([]);
 
   const notices = useQuery({
     queryKey: ['notifications'],
@@ -46,6 +47,9 @@ function Root() {
   });
   useEffect(() => {
     SecureStore.getItemAsync(SEEN_KEY).then(setSeenAt).catch(() => setSeenAt(null));
+    SecureStore.getItemAsync('circle.noticesRead').then((r) => {
+      try { setReadIds(r ? JSON.parse(r) : []); } catch { setReadIds([]); }
+    }).catch(() => setReadIds([]));
   }, [stack.length]);
 
   if (!ready) return <View style={s.screen}><Text style={s.muted}>Loading…</Text></View>;
@@ -57,7 +61,7 @@ function Root() {
     setTab(t);
     setStack([]);
   };
-  const unread = (notices.data ?? []).filter((n) => !seenAt || n.at > seenAt).length;
+  const unread = (notices.data ?? []).filter((n) => isUnread(n, seenAt, readIds)).length;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.bg }}>

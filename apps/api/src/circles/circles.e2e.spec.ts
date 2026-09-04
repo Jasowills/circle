@@ -41,7 +41,7 @@ describe('Circle e2e (demo flow)', () => {
   afterAll(async () => {
     // FK-safe cleanup of everything this run created.
     const users = await prisma.user.findMany({
-      where: { email: { in: [emailA, emailB, emailPwd, `e2e-x-${stamp}@example.com`, `e2e-y-${stamp}@example.com`, `e2e-z-${stamp}@example.com`, `e2e-p-${stamp}@example.com`, `e2e-q-${stamp}@example.com`] } },
+      where: { email: { in: [emailA, emailB, emailPwd, `e2e-x-${stamp}@example.com`, `e2e-y-${stamp}@example.com`, `e2e-z-${stamp}@example.com`, `e2e-p-${stamp}@example.com`, `e2e-q-${stamp}@example.com`, `e2e-s-${stamp}@example.com`, `e2e-t-${stamp}@example.com`] } },
       select: { id: true },
     });
     const uids = users.map((u) => u.id);
@@ -182,7 +182,7 @@ describe('Circle e2e (demo flow)', () => {
     const y = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-y-${stamp}@example.com` });
     const tX = x.body.accessToken as string;
     const tY = y.body.accessToken as string;
-    const idX = x.body.userId as string;
+    const idX = (await request(baseUrl).get('/me').set('Authorization', `Bearer ${tX}`)).body.id as string;
 
     const c = await request(baseUrl).post('/circles')
       .set('Authorization', `Bearer ${tX}`)
@@ -253,6 +253,7 @@ describe('Circle e2e (demo flow)', () => {
     const q = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-q-${stamp}@example.com` });
     const tP = p.body.accessToken as string;
     const tQ = q.body.accessToken as string;
+    const idP = (await request(baseUrl).get('/me').set('Authorization', `Bearer ${tP}`)).body.id as string;
     const c = await request(baseUrl).post('/circles')
       .set('Authorization', `Bearer ${tP}`)
       .send({ name: 'E2E Hold', goalAmount: 14000, contributionAmount: 1000, targetMembers: 2 });
@@ -266,7 +267,7 @@ describe('Circle e2e (demo flow)', () => {
     const sched = await request(baseUrl).get(`/circles/${rc}/cycles`)
       .set('Authorization', `Bearer ${tP}`);
     const c1 = sched.body[0];
-    const rToken = c1.recipient.id === (p.body.userId as string) ? tP : tQ;
+    const rToken = c1.recipient.id === idP ? tP : tQ;
     const otherToken = rToken === tP ? tQ : tP;
 
     const auto = await request(baseUrl).patch(`/circles/${rc}/auto`)
@@ -303,6 +304,35 @@ describe('Circle e2e (demo flow)', () => {
     const again = await request(baseUrl).post(`/circles/${rc}/cycles/${c1.id}/claim`)
       .set('Authorization', `Bearer ${rToken}`);
     expect(again.status).toBe(400);
+  });
+
+  it('paces contributions to the configured cadence', async () => {
+    const s = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-s-${stamp}@example.com` });
+    const tS = s.body.accessToken as string;
+    const c = await request(baseUrl).post('/circles')
+      .set('Authorization', `Bearer ${tS}`)
+      .send({ name: 'E2E Weekly', goalAmount: 14000, contributionAmount: 1000, targetMembers: 2, contributionsPerWeek: 1 });
+    const rc = c.body.id as string;
+    createdCircleIds.push(rc);
+    const t = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-t-${stamp}@example.com` });
+    const tT = t.body.accessToken as string;
+    await request(baseUrl).post(`/circles/${rc}/invite`)
+      .set('Authorization', `Bearer ${tS}`)
+      .send({ email: `e2e-t-${stamp}@example.com` });
+    await request(baseUrl).post(`/circles/${rc}/accept`)
+      .set('Authorization', `Bearer ${tT}`);
+    const first = await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tS}`)
+      .send({ amount: 1000, idempotencyKey: randomUUID() });
+    expect(first.status).toBe(200);
+    const second = await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tS}`)
+      .send({ amount: 1000, idempotencyKey: randomUUID() });
+    expect(second.status).toBe(400);
+    expect(second.body.message).toMatch(/Next contribution opens in/);
+    const detail = await request(baseUrl).get(`/circles/${rc}`)
+      .set('Authorization', `Bearer ${tS}`);
+    expect(detail.body.myNextContributionAt).not.toBeNull();
   });
 
   it('rejects contributions the wallet cannot cover', async () => {

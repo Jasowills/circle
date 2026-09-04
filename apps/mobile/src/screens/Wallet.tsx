@@ -11,12 +11,11 @@ function inOut(txns: WalletTx[], sign: 1 | -1): number {
   return txns.reduce((s, t) => s + (Math.sign(Number(t.amount)) === sign ? Math.abs(Number(t.amount)) : 0), 0);
 }
 
-const QUICK = [50000, 100000, 250000];
-
 function txLabel(type: string): string {
   switch (type) {
     case 'demo_fund': return 'Starter credit';
     case 'fund': return 'Top-up';
+    case 'withdraw': return 'Withdrawal';
     case 'circle_contribution': return 'Circle contribution';
     case 'circle_payout': return 'Payout received';
     default: return type.replace('_', ' ');
@@ -44,6 +43,16 @@ export function WalletScreen() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const withdraw = useMutation({
+    mutationFn: (amt: number) =>
+      api.post<{ replayed: boolean; balance: number }>('/wallet/withdraw', { amount: amt, idempotencyKey: Crypto.randomUUID() }),
+    onSuccess: (r) => {
+      setMsg(r.replayed ? 'That withdrawal already went through.' : 'Withdrawn. Demo money goes nowhere real.');
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const d = wallet.data;
 
   return (
@@ -60,31 +69,23 @@ export function WalletScreen() {
 
       <FadeIn delay={100}>
       <View style={s.card}>
-        <Text style={s.h3}>Top up (demo)</Text>
-        <Text style={s.muted}>Instant test credit. Real payments plug in here later.</Text>
-        <View style={[s.row, { gap: 8, marginTop: 12 }]}>
-          {QUICK.map((q) => (
-            <TouchableOpacity
-              key={q}
-              style={[s.btnGhost, { flex: 1, marginTop: 0 }]}
-              onPress={() => { setAmount(String(q)); fund.mutate(q); }}
-              disabled={fund.isPending}
-            >
-              <Text style={s.btnGhostText}>₦{(q / 1000).toString()}k</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={s.h3}>Move money</Text>
         <TextInput
           style={s.input}
           value={amount}
           onChangeText={setAmount}
           keyboardType="numeric"
-          placeholder="Custom amount"
+          placeholder="Amount"
           placeholderTextColor={palette.placeholder}
         />
-        <TouchableOpacity style={[s.btn, { backgroundColor: palette.money }]} onPress={() => fund.mutate(Number(amount))} disabled={fund.isPending}>
-          <Text style={[s.btnText, { color: '#06281a' }]}>{fund.isPending ? 'Funding…' : 'Fund wallet'}</Text>
-        </TouchableOpacity>
+        <View style={[s.row, { gap: 12 }]}>
+          <TouchableOpacity style={[s.btn, { flex: 1, backgroundColor: palette.money }]} onPress={() => fund.mutate(Number(amount))} disabled={fund.isPending}>
+            <Text style={[s.btnText, { color: '#06281a' }]}>{fund.isPending ? 'Funding…' : 'Fund'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[s.btnGhost, { flex: 1 }]} onPress={() => withdraw.mutate(Number(amount))} disabled={withdraw.isPending}>
+            <Text style={s.btnGhostText}>{withdraw.isPending ? 'Sending…' : 'Withdraw'}</Text>
+          </TouchableOpacity>
+        </View>
         {msg ? <Text style={[s.muted, { marginTop: 8 }]}>{msg}</Text> : null}
       </View>
       </FadeIn>
@@ -113,7 +114,7 @@ export function WalletScreen() {
             <View key={t.id} style={[s.row, { paddingVertical: 8 }]}>
               <View style={[s.row, { justifyContent: 'flex-start', gap: 10 }]}>
                 <Ionicons
-                  name={t.type === 'circle_payout' ? 'arrow-down-circle-outline' : t.type === 'circle_contribution' ? 'arrow-up-circle-outline' : 'add-circle-outline'}
+                  name={t.type === 'circle_payout' || t.type === 'fund' || t.type === 'demo_fund' ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
                   size={20}
                   color={t.type === 'circle_payout' ? palette.money : palette.text}
                 />

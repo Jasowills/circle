@@ -44,4 +44,12 @@ export class WalletController {
     const w = await this.wallet.getWallet(req.user.id);
     return { ...result, balance: await this.wallet.balance(w.id) };
   }
+
+  /** Demo withdrawal. Same idempotency discipline; never overdraws. */
+  @Post('withdraw')
+  async withdraw(@Req() req: { user: { id: string } }, @Body() dto: FundDto) {
+    const result = await this.wallet.withdraw(req.user.id, dto.amount, dto.idempotencyKey);
+    const w = await this.wallet.getWallet(req.user.id);
+    return { ...result, balance: await this.wallet.balance(w.id) };
+  }
 }

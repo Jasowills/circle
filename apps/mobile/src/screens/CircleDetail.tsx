@@ -98,6 +98,15 @@ export function CircleDetailScreen({ circleId, onOpenProfile }: { circleId: stri
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const saveRotation = useMutation({
+    mutationFn: (body: { mode: string; order: string[] }) => api.patch(`/circles/${circleId}/rotation`, body),
+    onSuccess: () => {
+      setMsg('Rotation order saved. It locks when the circle fills.');
+      qc.invalidateQueries({ queryKey: ['circle', circleId] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const d = detail.data;
   if (detail.isLoading) return <View style={s.screen}><Text style={s.muted}>Loading…</Text></View>;
   if (detail.error || !d) {
@@ -263,6 +272,15 @@ export function CircleDetailScreen({ circleId, onOpenProfile }: { circleId: stri
         ))}
       </View>
 
+      {d.myMembership.role === 'creator' && d.status === 'forming' && d.contributionAmount ? (
+        <RotationEditor
+          members={d.members.filter((m) => m.status === 'active').map((m) => ({ id: m.userId, name: m.user.name }))}
+          currentMode={d.rotationMode}
+          onSave={(mode, order) => saveRotation.mutate({ mode, order })}
+          saving={saveRotation.isPending}
+        />
+      ) : null}
+
       {(cycles.data ?? []).length > 0 && (
         <View style={s.card}>
           <Text style={s.h3}>Rotation schedule</Text>
@@ -307,5 +325,56 @@ export function CircleDetailScreen({ circleId, onOpenProfile }: { circleId: stri
       )}
 
     </ScrollView>
+  );
+}
+
+/** Creator-only rotation setup while forming: draw mode + manual order. */
+export function RotationEditor({ members, currentMode, onSave, saving }: {
+  members: { id: string; name: string }[];
+  currentMode: string;
+  onSave: (mode: string, order: string[]) => void;
+  saving: boolean;
+}) {
+  const { s, palette } = useTheme();
+  const [mode, setMode] = useState<'random_draw' | 'manual'>(currentMode === 'manual' ? 'manual' : 'random_draw');
+  const [order, setOrder] = useState<string[]>(members.map((m) => m.id));
+
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    const next = [...order];
+    [next[i], next[j]] = [next[j], next[i]];
+    setOrder(next);
+  };
+  const byId = Object.fromEntries(members.map((m) => [m.id, m.name]));
+
+  return (
+    <View style={s.card}>
+      <Text style={s.h3}>Payout order</Text>
+      <Text style={s.muted}>Drawn once when the circle fills. Set it now or let chance decide.</Text>
+      <View style={[s.row, { gap: 12, marginVertical: 8 }]}>
+        <TouchableOpacity style={[mode === 'random_draw' ? s.btn : s.btnGhost, { flex: 1, marginTop: 0, padding: 13 }]} onPress={() => setMode('random_draw')}>
+          <Text style={mode === 'random_draw' ? s.btnText : s.btnGhostText}>Random draw</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[mode === 'manual' ? s.btn : s.btnGhost, { flex: 1, marginTop: 0, padding: 13 }]} onPress={() => setMode('manual')}>
+          <Text style={mode === 'manual' ? s.btnText : s.btnGhostText}>I decide</Text>
+        </TouchableOpacity>
+      </View>
+      {mode === 'manual' && order.map((id, i) => (
+        <View key={id} style={[s.row, { paddingVertical: 6 }]}>
+          <Text style={[s.text, { width: 28, color: palette.money, fontWeight: '800' }]}>{i + 1}</Text>
+          <Text style={[s.text, { flex: 1 }]}>{byId[id] ?? id}</Text>
+          <TouchableOpacity onPress={() => move(i, -1)} disabled={i === 0} hitSlop={8}>
+            <Text style={{ color: i === 0 ? palette.faint : palette.text, fontSize: 18 }}>▲</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => move(i, 1)} disabled={i === order.length - 1} hitSlop={8}>
+            <Text style={{ color: i === order.length - 1 ? palette.faint : palette.text, fontSize: 18 }}>▼</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+      <TouchableOpacity style={s.btn} onPress={() => onSave(mode, order)} disabled={saving}>
+        <Text style={s.btnText}>{saving ? 'Saving…' : 'Save order'}</Text>
+      </TouchableOpacity>
+    </View>
   );
 }

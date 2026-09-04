@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsOptional, IsUUID } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CirclesService } from './circles.service';
 import { ContributeDto, CreateCircleDto, InviteDto } from './circles.dto';
@@ -12,6 +12,16 @@ class AutoDto {
   @IsOptional()
   @IsBoolean()
   collect?: boolean;
+}
+
+class RotationDto {
+  @IsIn(['random_draw', 'manual'])
+  mode!: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  order?: string[];
 }
 
 @Controller('circles')
@@ -80,6 +90,12 @@ export class CirclesController {
   @Patch(':id/auto')
   auto(@Req() req: { user: { id: string } }, @Param('id') id: string, @Body() dto: AutoDto) {
     return this.circles.setAuto(id, req.user.id, dto);
+  }
+
+  /** Creator sets the draw mode + manual order while the circle is forming. */
+  @Patch(':id/rotation')
+  rotation(@Req() req: { user: { id: string } }, @Param('id') id: string, @Body() dto: RotationDto) {
+    return this.circles.setRotation(id, req.user.id, dto.mode, dto.order ?? []);
   }
 
   /** Collect a won pot that waited for a manual tap. */

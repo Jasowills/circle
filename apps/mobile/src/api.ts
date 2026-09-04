@@ -191,6 +191,7 @@ export interface CircleDetail extends CircleSummary {
   myAutopilot: { contribute: boolean; collect: boolean };
   myNextContributionAt: string | null;
   contributionsPerWeek?: number | null;
+  rotationMode: string;
   cycleLengthDays: number;
   createdAt: string;
   members: {

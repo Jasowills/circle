@@ -21,6 +21,7 @@ export function CreateScreen({ onCreated, onCancel }: { onCreated: (id: string) 
   const [daily, setDaily] = useState('');
   const [members, setMembers] = useState('');
   const [freq, setFreq] = useState(2);
+  const [length, setLength] = useState(7);
   const [err, setErr] = useState<string | null>(null);
 
   const valid = mode === 'goal'
@@ -32,7 +33,7 @@ export function CreateScreen({ onCreated, onCancel }: { onCreated: (id: string) 
       api.post<CircleSummary>('/circles', {
         name: name.trim(),
         ...(mode === 'ajo'
-          ? { contributionAmount: Number(daily), targetMembers: Number(members), contributionsPerWeek: freq }
+          ? { contributionAmount: Number(daily), targetMembers: Number(members), contributionsPerWeek: freq, cycleLengthDays: length }
           : { goalAmount: Number(goal) }),
       }),
     onSuccess: (c) => {
@@ -91,6 +92,18 @@ export function CreateScreen({ onCreated, onCancel }: { onCreated: (id: string) 
             <Text style={[s.muted, { marginTop: 8 }]}>
               Weekly pot: ₦{(Number(daily || 0) * 7 * Number(members || 0)).toLocaleString()}. Order is drawn once the circle fills.
             </Text>
+            <Text style={s.label}>Cycle length</Text>
+            <View style={[s.row, { gap: 8 }]}>
+              {[7, 14, 30].map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[length === d ? s.btn : s.btnGhost, { flex: 1, marginTop: 0, paddingVertical: 10 }]}
+                  onPress={() => setLength(d)}
+                >
+                  <Text style={[length === d ? s.btnText : s.btnGhostText, { fontSize: 12 }]}>{d}d</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </>
         ) : (
           <>

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import * as Crypto from 'expo-crypto';
 import { API_URL, api } from '../api';
 import { useAuth } from '../auth';
 import { useTheme } from '../theme';
@@ -9,10 +11,22 @@ import { Avatar } from '../Avatar';
 export function SettingsScreen() {
   const { user, reloadUser, signOut } = useAuth();
   const { s, palette, mode, toggle } = useTheme();
+  const qc = useQueryClient();
   const [name, setName] = useState(user?.name ?? '');
   const [msg, setMsg] = useState<string | null>(null);
+  const [demoMsg, setDemoMsg] = useState<string | null>(null);
 
   if (!user) return null;
+
+  const quickFund = useMutation({
+    mutationFn: (amt: number) =>
+      api.post('/wallet/fund', { amount: amt, idempotencyKey: Crypto.randomUUID() }),
+    onSuccess: () => {
+      setDemoMsg('Demo credit landed in your wallet.');
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    },
+    onError: (e: Error) => setDemoMsg(e.message),
+  });
 
   const saveName = async () => {
     setMsg(null);
@@ -65,6 +79,19 @@ export function SettingsScreen() {
           <Text style={s.muted}>Server</Text>
           <Text style={s.text}>{API_URL.replace(/^https?:\/\//, '')}</Text>
         </View>
+      </View>
+
+      <View style={s.card}>
+        <Text style={s.h3}>Demo tools</Text>
+        <Text style={s.muted}>Instant test credit. Real payments plug in here later.</Text>
+        <View style={[s.row, { gap: 8, marginTop: 12 }]}>
+          {[50000, 100000, 250000].map((q) => (
+            <TouchableOpacity key={q} style={[s.btnGhost, { flex: 1, marginTop: 0 }]} onPress={() => quickFund.mutate(q)} disabled={quickFund.isPending}>
+              <Text style={s.btnGhostText}>₦{(q / 1000).toString()}k</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {demoMsg ? <Text style={[s.muted, { marginTop: 8 }]}>{demoMsg}</Text> : null}
       </View>
 
       <TouchableOpacity style={[s.btnGhost, { borderColor: palette.text }]} onPress={signOut}>
