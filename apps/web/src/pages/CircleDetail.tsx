@@ -16,6 +16,7 @@ export function CircleDetailPage() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [amount, setAmount] = useState('1000');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [tab, setTab] = useState<'live' | 'history'>('live');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const detail = useQuery({
@@ -30,7 +31,7 @@ export function CircleDetailPage() {
   const pushFeed = (text: string) =>
     setFeed((f) => [{ id: `${Date.now()}-${Math.random()}`, text, at: new Date() }, ...f].slice(0, 30));
 
-  // Live room: re-join when the circle or token changes.
+  // Live room: re-join when the circle changes.
   useEffect(() => {
     const token = getToken();
     if (!token || !id) return;
@@ -56,8 +57,6 @@ export function CircleDetailPage() {
   }, [id]);
 
   const contribute = useMutation({
-    // A fresh UUID per submission: double-taps/retries share the key, so the
-    // server turns the second hit into a replay instead of a duplicate.
     mutationFn: (amt: number) =>
       api.post<{ replayed: boolean }>(`/circles/${id}/contribute`, { amount: amt, idempotencyKey: crypto.randomUUID() }),
     onSuccess: (r) => {
@@ -98,106 +97,126 @@ export function CircleDetailPage() {
 
   return (
     <>
-      <div className="card">
+      <div className="card hero">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <h2 style={{ margin: 0 }}>{d.name}</h2>
           <span className={`pill ${d.status}`}>{d.status.replace('_', ' ')}</span>
+          <span className="muted" style={{ fontSize: 13 }}>Your share: {Number(d.myBalance).toLocaleString()} {d.currency}</span>
         </div>
+        <h1>{d.name}</h1>
+        <div className="hero-big">{Number(d.balance).toLocaleString()} <span className="muted" style={{ fontSize: 18 }}>of {Number(d.goalAmount).toLocaleString()} {d.currency}</span></div>
         <div className="progress">
           <div style={{ width: `${Math.round(d.progress * 100)}%` }} />
         </div>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span>
-            <strong>{Number(d.balance).toLocaleString()} {d.currency}</strong>
-            <span className="muted"> of {Number(d.goalAmount).toLocaleString()} ({Math.round(d.progress * 100)}%)</span>
-          </span>
-          <span className="muted">Your share: {Number(d.myBalance).toLocaleString()}</span>
-        </div>
+        <span className="muted">{Math.round(d.progress * 100)}% funded · {d.members.filter((m) => m.status === 'active').length} active members</span>
       </div>
 
       {msg && <div className={msg.ok ? 'card' : 'error'}>{msg.text}</div>}
 
       {d.myMembership.status === 'invited' && (
         <div className="card">
-          <p>You've been invited to this circle.</p>
+          <p style={{ marginTop: 0 }}>You've been invited to this circle. Accept to start contributing.</p>
           <button onClick={() => accept.mutate()} disabled={accept.isPending}>Accept invite</button>
         </div>
       )}
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Contribute</h3>
-        <form
-          className="inline"
-          onSubmit={(e) => {
-            e.preventDefault();
-            contribute.mutate(Number(amount));
-          }}
-        >
-          <div>
-            <label>Amount ({d.currency})</label>
-            <input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} required />
+      <div className="cols">
+        <div>
+          <div className="card">
+            <h3 className="serif" style={{ fontSize: 22 }}>Contribute</h3>
+            <form
+              className="inline"
+              onSubmit={(e) => {
+                e.preventDefault();
+                contribute.mutate(Number(amount));
+              }}
+            >
+              <div>
+                <label>Amount ({d.currency})</label>
+                <input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} required />
+              </div>
+              <div style={{ flex: '0 0 auto' }}>
+                <button type="submit" disabled={contribute.isPending || d.myMembership.status !== 'active'}>
+                  {contribute.isPending ? 'Sending…' : 'Contribute'}
+                </button>
+              </div>
+            </form>
+            <p className="muted" style={{ fontSize: 12 }}>Safe to retry. One tap can never charge you twice.</p>
           </div>
-          <div style={{ flex: '0 0 auto' }}>
-            <button type="submit" disabled={contribute.isPending || d.myMembership.status !== 'active'}>
-              {contribute.isPending ? 'Sending…' : 'Contribute'}
-            </button>
-          </div>
-        </form>
-        <p className="muted" style={{ fontSize: 12 }}>Safe to retry. One tap can never charge you twice.</p>
-      </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Members</h3>
-        {d.members.map((m) => (
-          <div className="member" key={m.userId}>
-            <span>{m.user.name} <span className="muted">· {m.role} · {m.status}</span></span>
-            <span>{Number(m.balance).toLocaleString()}</span>
+          <div className="card">
+            <div className="tabs">
+              <button className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
+                <span className="live-dot" />Live
+              </button>
+              <button className={tab === 'history' ? 'on' : ''} onClick={() => setTab('history')}>History</button>
+            </div>
+            {tab === 'live' ? (
+              <>
+                {feed.length === 0 && <p className="muted">Live. New contributions and member updates show up here.</p>}
+                <ul className="feed">
+                  {feed.map((f) => (
+                    <li key={f.id}>{f.text} <span className="muted">· {f.at.toLocaleTimeString()}</span></li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <ul className="feed">
+                  {(ledger.data?.data ?? []).map((e) => (
+                    <li key={e.id}>
+                      {e.user.name} · {e.type} · <strong>{Number(e.amount).toLocaleString()}</strong>
+                      <span className="muted"> · {new Date(e.createdAt).toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="muted" style={{ fontSize: 12 }}>{ledger.data?.total ?? 0} entries total. Entries are permanent; fixes show up as new entries.</p>
+              </>
+            )}
           </div>
-        ))}
-        <form
-          className="inline"
-          style={{ marginTop: 12 }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            invite.mutate();
-          }}
-        >
-          <div>
-            <label>Invite by email</label>
-            <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="friend@example.com" required />
-          </div>
-          <div style={{ flex: '0 0 auto' }}>
-            <button type="submit" className="ghost" disabled={invite.isPending}>Invite</button>
-          </div>
-        </form>
-        {d.myMembership.role === 'creator' && (d.status === 'active' || d.status === 'goal_reached') && (
-          <div style={{ marginTop: 12 }}>
-            <button className="ghost" onClick={() => close.mutate()} disabled={close.isPending}>Close circle</button>
-          </div>
-        )}
-      </div>
+        </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}><span className="live-dot" />Live feed</h3>
-        {feed.length === 0 && <p className="muted">Live. New contributions and member updates show up here.</p>}
-        <ul className="feed">
-          {feed.map((f) => (
-            <li key={f.id}>{f.text} <span className="muted">· {f.at.toLocaleTimeString()}</span></li>
-          ))}
-        </ul>
-      </div>
+        <div>
+          <div className="card">
+            <h3>Members</h3>
+            {d.members.map((m) => (
+              <div className="member" key={m.userId}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                  {m.user.avatarUrl ? (
+                    <img className="avatar" src={m.user.avatarUrl} alt="" />
+                  ) : (
+                    <span className="avatar-fallback">{m.user.name.charAt(0).toUpperCase()}</span>
+                  )}
+                  <span>{m.user.name} <span className="muted">· {m.role} · {m.status.replace('_', ' ')}</span></span>
+                </span>
+                <span>{Number(m.balance).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
 
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>History</h3>
-        <ul className="feed">
-          {(ledger.data?.data ?? []).map((e) => (
-            <li key={e.id}>
-              {e.user.name} · {e.type} · <strong>{Number(e.amount).toLocaleString()}</strong>
-              <span className="muted"> · {new Date(e.createdAt).toLocaleString()}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="muted" style={{ fontSize: 12 }}>{ledger.data?.total ?? 0} entries total. Entries are permanent; fixes show up as new entries.</p>
+          <div className="card">
+            <h3>Invite</h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                invite.mutate();
+              }}
+            >
+              <label>Invite by email</label>
+              <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="friend@example.com" required />
+              <div style={{ marginTop: 12 }}>
+                <button type="submit" className="ghost" disabled={invite.isPending} style={{ width: '100%' }}>Send invite</button>
+              </div>
+            </form>
+          </div>
+
+          {d.myMembership.role === 'creator' && (d.status === 'active' || d.status === 'goal_reached') && (
+            <div className="card">
+              <h3>Close out</h3>
+              <p className="muted" style={{ fontSize: 13 }}>Closing ends contributions for everyone. This cannot be undone.</p>
+              <button className="ghost" onClick={() => close.mutate()} disabled={close.isPending} style={{ width: '100%' }}>Close circle</button>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

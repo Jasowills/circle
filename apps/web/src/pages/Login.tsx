@@ -36,6 +36,7 @@ export function Login() {
   const [showDev, setShowDev] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const last = slide === SLIDES.length - 1;
+  const s = SLIDES[slide];
 
   const devLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,89 +55,92 @@ export function Login() {
   };
 
   return (
-    <div className="onboard">
-      <div className="slides">
-        {SLIDES.map(
-          (s, i) =>
-            i === slide && (
-              <div className="slide" key={s.title}>
-                <img src={s.img} alt={s.alt} />
-                <div className="slide-caption">
-                  <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <Logo size={20} />
-                    <strong style={{ fontSize: 14, letterSpacing: 1 }}>CIRCLE</strong>
-                  </div>
-                  <h2>{s.title}</h2>
-                  <p>{s.body}</p>
-                </div>
-              </div>
-            ),
-        )}
-      </div>
-      <div className="dots">
-        {SLIDES.map((s, i) => (
-          <span key={s.title} className={i === slide ? 'on' : ''} />
-        ))}
+    <div className="auth-split">
+      <div className="auth-visual">
+        <img src={s.img} alt={s.alt} />
+        <div className="auth-veil" />
+        <div className="auth-brand">
+          <Logo size={24} />
+          Circle
+        </div>
+        <div className="auth-caption">
+          <h2>{s.title}</h2>
+          <p>{s.body}</p>
+        </div>
       </div>
 
-      {!last ? (
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <button className="ghost" onClick={() => setSlide(SLIDES.length - 1)}>Skip</button>
-          <button onClick={() => setSlide(slide + 1)}>Next</button>
-        </div>
-      ) : (
-        <div className="card">
-          <div className="row" style={{ alignItems: 'center', marginBottom: 12 }}>
-            <Logo size={30} />
-            <strong style={{ fontSize: 18 }}>Circle</strong>
+      <div className="auth-panel">
+        <div className="auth-card">
+          <div className="dots">
+            {SLIDES.map((item, i) => (
+              <span key={item.title} className={i === slide ? 'on' : ''} onClick={() => setSlide(i)} />
+            ))}
           </div>
-          <div className="row" style={{ marginBottom: 12 }}>
-            <button className={mode === 'join' ? '' : 'ghost'} onClick={() => setMode('join')} style={{ flex: 1 }}>
-              Join
-            </button>
-            <button className={mode === 'signin' ? '' : 'ghost'} onClick={() => setMode('signin')} style={{ flex: 1 }}>
-              Sign in
-            </button>
-          </div>
-          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-            {mode === 'join'
-              ? 'New here? Create your account with Google in seconds.'
-              : 'Welcome back. Sign in with the Google account you joined with.'}
-          </p>
-          <a className="btn" href={googleLoginUrl} style={{ width: '100%', textAlign: 'center' }}>
-            Continue with Google
-          </a>
-          <p className="muted" style={{ fontSize: 13 }}>
-            <button className="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setShowDev(!showDev)}>
-              Trouble signing in?
-            </button>
-          </p>
-          {showDev && (
+
+          {!last ? (
             <>
-              <p className="muted" style={{ fontSize: 13 }}>
-                No Google account handy? Use email + password instead. Try <code>james@circle.com</code> / <code>12345678</code> on a seeded database.
+              <h2 className="serif" style={{ fontSize: 30, margin: '0 0 8px' }}>{s.title}</h2>
+              <p className="muted">{s.body}</p>
+              <div className="row" style={{ marginTop: 20 }}>
+                <button className="ghost" onClick={() => setSlide(SLIDES.length - 1)}>Skip</button>
+                <button onClick={() => setSlide(slide + 1)}>Next</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="row" style={{ alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <Logo size={30} />
+                <strong style={{ fontSize: 20 }}>Circle</strong>
+              </div>
+              <div className="row" style={{ marginBottom: 12 }}>
+                <button className={mode === 'join' ? '' : 'ghost'} onClick={() => setMode('join')} style={{ flex: 1 }}>
+                  Join
+                </button>
+                <button className={mode === 'signin' ? '' : 'ghost'} onClick={() => setMode('signin')} style={{ flex: 1 }}>
+                  Sign in
+                </button>
+              </div>
+              <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+                {mode === 'join'
+                  ? 'New here? Create your account with Google in seconds.'
+                  : 'Welcome back. Sign in with the Google account you joined with.'}
               </p>
-              {err && <div className="error">{err}</div>}
-              <form onSubmit={devLogin}>
-                <label>Email</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="james@circle.com" required />
-                {mode === 'join' && (
-                  <>
-                    <label>Name</label>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="James" />
-                  </>
-                )}
-                <label>Password (8+ characters)</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
-                <div style={{ marginTop: 12 }}>
-                  <button type="submit">{mode === 'join' ? 'Create account' : 'Sign in'}</button>
-                </div>
-              </form>
+              <a className="btn" href={googleLoginUrl} style={{ width: '100%', textAlign: 'center' }}>
+                Continue with Google
+              </a>
+              <p style={{ margin: '14px 0 0' }}>
+                <button className="ghost" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setShowDev(!showDev)}>
+                  Trouble signing in?
+                </button>
+              </p>
+              {showDev && (
+                <>
+                  <p className="muted" style={{ fontSize: 13 }}>
+                    No Google account handy? Use email + password instead. Try <code>james@circle.com</code> / <code>12345678</code> on a seeded database.
+                  </p>
+                  {err && <div className="error">{err}</div>}
+                  <form onSubmit={devLogin}>
+                    <label>Email</label>
+                    <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="james@circle.com" required />
+                    {mode === 'join' && (
+                      <>
+                        <label>Name</label>
+                        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="James" />
+                      </>
+                    )}
+                    <label>Password (8+ characters)</label>
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+                    <div style={{ marginTop: 12 }}>
+                      <button type="submit" style={{ width: '100%' }}>{mode === 'join' ? 'Create account' : 'Sign in'}</button>
+                    </div>
+                  </form>
+                </>
+              )}
             </>
           )}
+          <p className="photo-credit">Photos: Pexels</p>
         </div>
-      )}
-      <p className="photo-credit">Photos: Pexels</p>
+      </div>
     </div>
   );
 }

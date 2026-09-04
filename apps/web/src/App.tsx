@@ -1,9 +1,10 @@
-import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import { ThemeProvider, useTheme } from './theme';
 import { Logo } from './Logo';
 import { Login, AuthCallback } from './pages/Login';
 import { Setup } from './pages/Setup';
+import { Overview } from './pages/Overview';
 import { CirclesList } from './pages/CirclesList';
 import { CircleDetailPage } from './pages/CircleDetail';
 
@@ -13,31 +14,39 @@ function Shell() {
   const nav = useNavigate();
   if (!user) return <Navigate to="/login" replace />;
   return (
-    <>
-      <div className="topbar">
-        <Link to="/" className="brand" style={{ textDecoration: 'none', color: 'inherit' }}>
+    <div className="shell">
+      <aside className="sidebar">
+        <Link to="/" className="brand">
           <Logo />
           Circle
         </Link>
-        <div className="row">
+        <NavLink to="/" end className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
+          Overview
+        </NavLink>
+        <NavLink to="/circles" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
+          Circles
+        </NavLink>
+        <div className="side-foot">
           <span className="muted" style={{ fontSize: 13 }}>{user.name}</span>
-          <button className="ghost" onClick={toggle} title="Toggle light / dark">
-            {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
-          <button
-            className="ghost"
-            onClick={() => signOut().then(() => nav('/login'))}
-          >
-            Logout
-          </button>
+          <div className="row">
+            <button className="ghost" onClick={toggle} title="Toggle light / dark">
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+            <button className="ghost" onClick={() => signOut().then(() => nav('/login'))}>
+              Logout
+            </button>
+          </div>
         </div>
-      </div>
-      <Routes>
-        <Route path="/" element={<CirclesList />} />
-        <Route path="/setup" element={<Setup />} />
-        <Route path="/circles/:id" element={<CircleDetailPage />} />
-      </Routes>
-    </>
+      </aside>
+      <main className="main">
+        <Routes>
+          <Route path="/" element={<Overview />} />
+          <Route path="/circles" element={<CirclesList />} />
+          <Route path="/setup" element={<Setup />} />
+          <Route path="/circles/:id" element={<CircleDetailPage />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
 
@@ -45,13 +54,11 @@ export function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <div className="wrap">
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/*" element={<Shell />} />
-          </Routes>
-        </div>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/*" element={<Shell />} />
+        </Routes>
       </AuthProvider>
     </ThemeProvider>
   );
