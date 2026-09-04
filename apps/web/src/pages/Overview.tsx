@@ -213,11 +213,6 @@ export function Overview() {
             <Donut slices={mix} />
           </div>
 
-          <div className="card">
-            <h3>Rotation</h3>
-            <RotationPreview />
-          </div>
-
           {list.filter((c) => c.status === 'completed' || c.status === 'goal_reached').length > 0 && (
             <div className="card">
               <h3>Hall of fame</h3>
