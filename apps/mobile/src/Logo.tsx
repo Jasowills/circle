@@ -1,15 +1,15 @@
 import { View } from 'react-native';
 import { useTheme } from './theme';
 
-/** Interlocking rings mark, drawn with plain views. Inherits the theme text color. */
-export function Logo({ size = 26 }: { size?: number }) {
+/** Interlocking rings mark. Follows the theme text color unless pinned (e.g. white over photos). */
+export function Logo({ size = 26, color }: { size?: number; color?: string }) {
   const { palette } = useTheme();
   const ring = {
     width: size * 0.68,
     height: size * 0.68,
     borderRadius: size * 0.34,
     borderWidth: Math.max(2, size * 0.09),
-    borderColor: palette.text,
+    borderColor: color ?? palette.text,
   };
   return (
     <View style={{ width: size, height: size, flexDirection: 'row', alignItems: 'center' }}>

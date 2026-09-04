@@ -56,6 +56,10 @@ export function Login() {
               <div className="slide" key={s.title}>
                 <img src={s.img} alt={s.alt} />
                 <div className="slide-caption">
+                  <div className="row" style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Logo size={20} />
+                    <strong style={{ fontSize: 14, letterSpacing: 1 }}>CIRCLE</strong>
+                  </div>
                   <h2>{s.title}</h2>
                   <p>{s.body}</p>
                 </div>

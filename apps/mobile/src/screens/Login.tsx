@@ -85,7 +85,8 @@ export function LoginScreen() {
   };
 
   return (
-    <ScrollView style={s.screen}>
+    <ScrollView style={s.screen} contentContainerStyle={{ flexGrow: 1, paddingTop: 32, paddingBottom: 16 }}>
+      <View style={{ flex: 1, minHeight: 24 }} />
       <ScrollView
         ref={pager}
         horizontal
@@ -93,9 +94,16 @@ export function LoginScreen() {
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={(e) => setSlide(Math.round(e.nativeEvent.contentOffset.x / width))}
       >
-        {SLIDES.map((item) => (
-          <View key={item.title} style={[s.hero, { width, height: 340 }]}>
+        {SLIDES.map((item, i) => (
+          <View key={item.title} style={[s.hero, { width, height: 400 }]}>
             <Image source={{ uri: item.img }} style={s.heroImage} />
+            <View style={s.heroTop}>
+              <View style={s.heroBrand}>
+                <Logo size={22} color="#ffffff" />
+                <Text style={s.heroBrandText}>Circle</Text>
+              </View>
+              <Text style={s.heroCount}>{i + 1} / {SLIDES.length}</Text>
+            </View>
             <View style={s.heroCaption}>
               <Text style={s.heroTitle}>{item.title}</Text>
               <Text style={s.heroBody}>{item.body}</Text>
@@ -114,7 +122,7 @@ export function LoginScreen() {
           <TouchableOpacity style={s.btnGhost} onPress={() => goTo(SLIDES.length - 1)}>
             <Text style={s.btnGhostText}>Skip</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.btn} onPress={() => goTo(slide + 1)}>
+          <TouchableOpacity style={[s.btn, { flex: 1, marginTop: 0 }]} onPress={() => goTo(slide + 1)}>
             <Text style={s.btnText}>Next</Text>
           </TouchableOpacity>
         </View>
@@ -158,6 +166,7 @@ export function LoginScreen() {
         </View>
       )}
       <Text style={[s.faint, { textAlign: 'center', marginVertical: 12 }]}>Photos: Pexels</Text>
+      <View style={{ flex: 2, minHeight: 16 }} />
     </ScrollView>
   );
 }
