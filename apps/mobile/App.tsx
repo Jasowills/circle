@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from './src/theme';
 import { Logo } from './src/Logo';
 import { LoginScreen } from './src/screens/Login';
 import { SetupScreen } from './src/screens/Setup';
+import { CreateScreen } from './src/screens/Create';
 import { CirclesScreen } from './src/screens/Circles';
 import { CircleDetailScreen } from './src/screens/CircleDetail';
 
@@ -16,7 +17,7 @@ const qc = new QueryClient();
 function Root() {
   const { user, ready, setupRequired, signOut } = useAuth();
   const { s, mode, toggle, palette } = useTheme();
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [route, setRoute] = useState<{ name: 'list' } | { name: 'create' } | { name: 'detail'; id: string }>({ name: 'list' });
 
   if (!ready) return <View style={s.screen}><Text style={s.muted}>Loading…</Text></View>;
   if (!user) return <LoginScreen />;
@@ -25,7 +26,7 @@ function Root() {
   return (
     <View style={{ flex: 1, backgroundColor: palette.bg }}>
       <View style={[s.row, { padding: 16, paddingTop: 56 }]}>
-        <TouchableOpacity onPress={() => setOpenId(null)} accessibilityRole="button" accessibilityLabel="Back to circles">
+        <TouchableOpacity onPress={() => setRoute({ name: 'list' })} accessibilityRole="button" accessibilityLabel="Back to circles">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Logo size={22} />
             <Text style={[s.h1, { fontSize: 20 }]}>Circle</Text>
@@ -40,10 +41,12 @@ function Root() {
           </TouchableOpacity>
         </View>
       </View>
-      {openId ? (
-        <CircleDetailScreen circleId={openId} />
+      {route.name === 'detail' ? (
+        <CircleDetailScreen circleId={route.id} />
+      ) : route.name === 'create' ? (
+        <CreateScreen onCreated={(id) => setRoute({ name: 'detail', id })} onCancel={() => setRoute({ name: 'list' })} />
       ) : (
-        <CirclesScreen onOpen={setOpenId} />
+        <CirclesScreen onOpen={(id) => setRoute({ name: 'detail', id })} onCreate={() => setRoute({ name: 'create' })} />
       )}
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
     </View>

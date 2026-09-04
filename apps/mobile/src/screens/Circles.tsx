@@ -13,7 +13,7 @@ function greeting(name: string): string {
   return `Good ${part}, ${first}`;
 }
 
-export function CirclesScreen({ onOpen }: { onOpen: (id: string) => void }) {
+export function CirclesScreen({ onOpen, onCreate }: { onOpen: (id: string) => void; onCreate: () => void }) {
   const { s, palette } = useTheme();
   const { user } = useAuth();
   const { data, isLoading, error, refetch } = useQuery({
@@ -36,7 +36,7 @@ export function CirclesScreen({ onOpen }: { onOpen: (id: string) => void }) {
   const total = circles.reduce((sum, c) => sum + Number(c.balance), 0);
 
   return (
-    <View style={s.screen}>
+    <View style={[s.screen, { flex: 1 }]}>
       <FlatList
         data={circles}
         keyExtractor={(c) => c.id}
@@ -57,12 +57,11 @@ export function CirclesScreen({ onOpen }: { onOpen: (id: string) => void }) {
             <Logo size={64} color={palette.faint} />
             <Text style={[s.h3, { marginTop: 16 }]}>No circles yet</Text>
             <Text style={[s.muted, { textAlign: 'center', marginTop: 4 }]}>
-              Circles are created on web. Start one there, or ask a member to invite you by email.
+              Start your first savings goal, or ask a member to invite you by email.
             </Text>
-            <View style={[s.row, { justifyContent: 'center', gap: 8, marginTop: 12 }]}>
-              <Ionicons name="mail-outline" size={16} color={palette.muted} />
-              <Text style={s.muted}>Invites arrive by email</Text>
-            </View>
+            <TouchableOpacity style={[s.btn, { paddingHorizontal: 24 }]} onPress={onCreate}>
+              <Text style={s.btnText}>Start a circle</Text>
+            </TouchableOpacity>
           </View>
         }
         renderItem={({ item: c }) => {
@@ -90,6 +89,24 @@ export function CirclesScreen({ onOpen }: { onOpen: (id: string) => void }) {
           );
         }}
       />
+      <TouchableOpacity
+        onPress={onCreate}
+        accessibilityRole="button"
+        accessibilityLabel="Start a new circle"
+        style={{
+          position: 'absolute',
+          right: 20,
+          bottom: 24,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: palette.accent,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name="add" size={28} color={palette.accentInk} />
+      </TouchableOpacity>
     </View>
   );
 }
