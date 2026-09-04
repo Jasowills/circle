@@ -193,6 +193,32 @@ async function main() {
     invitees: [['tunde@circle.com', 1], ['ngozi@circle.com', 1]],
   });
 
+  // G. Owambe Fund — James's fourth circle, mid first cycle.
+  const g = await makeCircle({
+    name: 'Owambe Fund', contrib: 15000, ago: 9, status: 'active',
+    members: [['funmi@circle.com', 'creator', 9], ['james@circle.com', 'member', 8], ['tunde@circle.com', 'member', 7], ['amaka@circle.com', 'member', 6]],
+  });
+  const [g1] = await makeCycles(g.id, ['funmi@circle.com', 'james@circle.com', 'tunde@circle.com', 'amaka@circle.com'], 420000, 0, 3);
+  const G1 = [
+    ['funmi@circle.com', 3, 5], ['james@circle.com', 2, 4],
+    ['tunde@circle.com', 2, 3], ['amaka@circle.com', 1, 2],
+  ];
+  for (const [email, count, ago] of G1) {
+    for (let i = 0; i < count; i++) await fundTx(g.id, g1, email, 15000, ago);
+  }
+
+  // H. December Detty Fund + I. School Fees Pool — forming, discoverable.
+  await makeCircle({
+    name: 'December Detty Fund', contrib: 10000, ago: 4, status: 'forming',
+    members: [['ngozi@circle.com', 'creator', 4]],
+    invitees: [['james@circle.com', 2], ['amaka@circle.com', 1]],
+  });
+  await makeCircle({
+    name: 'School Fees Pool', contrib: 25000, ago: 5, status: 'forming',
+    members: [['tunde@circle.com', 'creator', 5]],
+    invitees: [['emeka@circle.com', 3]],
+  });
+
   // E. Demo Day Ajo — 1,000,000/1,050,000. James's next ₦50k tap completes it
   // and pays the full pot to James, live.
   const e = await makeCircle({
