@@ -136,7 +136,9 @@ apps/mobile   Expo + same API (view, contribute, live feed; create lives on web)
   (`ws.broadcast`). Grep one `circleId` to trace any discrepancy end to end.
 - **Tests:** `npm test` in `apps/api` runs unit (state machine) + in-process e2e
   (auth → invite/accept → idempotent writes → live WS event → audit trail).
-  Needs Postgres up and `ALLOW_DEV_LOGIN=true`.
+  Needs Postgres up and `ALLOW_DEV_LOGIN=true`. `npm run test:ws` runs the
+  two-session live test against a running server (james contributes, ada
+  receives in ~150ms).
 
 ## Documented trade-offs
 
