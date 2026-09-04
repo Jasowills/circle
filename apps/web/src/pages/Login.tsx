@@ -36,6 +36,15 @@ export function Login() {
   const [err, setErr] = useState<string | null>(null);
   const last = slide === SLIDES.length - 1;
   const s = SLIDES[slide];
+  const [paused, setPaused] = useState(false);
+
+  // Auto-advance the visual until the auth slide. Words live on the right;
+  // the left is pure imagery.
+  useEffect(() => {
+    if (paused || last) return;
+    const t = setTimeout(() => setSlide(slide + 1), 5000);
+    return () => clearTimeout(t);
+  }, [slide, paused, last]);
 
   const devLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,16 +64,16 @@ export function Login() {
 
   return (
     <div className="auth-split">
-      <div className="auth-visual">
-        <img src={s.img} alt={s.alt} />
+      <div
+        className="auth-visual"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <img key={s.img} src={s.img} alt={s.alt} className="crossfade" />
         <div className="auth-veil" />
         <div className="auth-brand">
           <Logo size={24} />
           Circle
-        </div>
-        <div className="auth-caption">
-          <h2>{s.title}</h2>
-          <p>{s.body}</p>
         </div>
       </div>
 
@@ -78,6 +87,9 @@ export function Login() {
 
           {!last ? (
             <>
+              <p className="muted" style={{ fontSize: 13, margin: '0 0 4px' }}>
+                {slide + 1} of {SLIDES.length}
+              </p>
               <h2 className="serif" style={{ fontSize: 30, margin: '0 0 8px' }}>{s.title}</h2>
               <p className="muted">{s.body}</p>
               <div className="row" style={{ marginTop: 20 }}>
