@@ -189,7 +189,7 @@ export function LoginScreen() {
                 </View>
               ) : null}
               <Text style={s.label}>Email</Text>
-              <TextInput style={s.input} value={email} onChangeText={setEmail} placeholder="james@circle.com" placeholderTextColor={palette.placeholder} autoCapitalize="none" keyboardType="email-address" />
+              <TextInput style={s.input} value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor={palette.placeholder} autoCapitalize="none" keyboardType="email-address" />
               {mode === 'join' && (
                 <>
                   <Text style={s.label}>Name</Text>
@@ -205,7 +205,6 @@ export function LoginScreen() {
           )}
         </View>
       )}
-      <Text style={[s.faint, { textAlign: 'center', marginVertical: 12 }]}>Photos: Pexels</Text>
       <View style={{ flex: 2, minHeight: 16 }} />
     </ScrollView>
     </KeyboardAvoidingView>

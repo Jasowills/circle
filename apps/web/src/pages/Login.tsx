@@ -117,7 +117,7 @@ export function Login() {
               {err && <div className="error">{err}</div>}
               <form onSubmit={devLogin}>
                 <label>Email</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="james@circle.com" required />
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
                 {mode === 'join' && (
                   <>
                     <label>Name</label>
@@ -130,12 +130,8 @@ export function Login() {
                   <button type="submit" style={{ width: '100%' }}>{mode === 'join' ? 'Create account' : 'Sign in'}</button>
                 </div>
               </form>
-              <p className="muted" style={{ fontSize: 12 }}>
-                Seeded login: <code>james@circle.com</code> / <code>12345678</code>
-              </p>
             </>
           )}
-          <p className="photo-credit">Photos: Pexels</p>
         </div>
       </div>
     </div>
