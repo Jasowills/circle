@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { API_URL, api, getToken, type CircleDetail, type Cycle, type LedgerPage, type WalletOverview } from '../api';
+import { Loading } from '../Loading';
 import { countdownText, statusLabel } from '../format';
 
 export function CircleDetailPage() {
@@ -92,7 +93,9 @@ export function CircleDetailPage() {
   });
 
   const d = detail.data;
-  if (detail.isLoading) return <p className="muted">Loading circle…</p>;
+  const nextOpensAt = d?.myNextContributionAt ? new Date(d.myNextContributionAt) : null;
+  const blocked = !!nextOpensAt && nextOpensAt > new Date();
+  if (detail.isLoading) return <Loading label="Loading circle…" />;
   if (detail.error || !d) return <div className="error">{(detail.error as Error)?.message ?? 'Not found'}</div>;
 
   return (
@@ -174,17 +177,17 @@ export function CircleDetailPage() {
                 </div>
               )}
               <div style={{ flex: '0 0 auto' }}>
-                <button type="submit" disabled={contribute.isPending || d.myMembership.status !== 'active'}>
+                <button type="submit" disabled={contribute.isPending || d.myMembership.status !== 'active' || blocked} style={blocked ? { opacity: 0.4 } : undefined}>
                   {contribute.isPending ? 'Sending…' : d.contributionAmount ? `Contribute ₦${Number(d.contributionAmount).toLocaleString()}` : 'Contribute'}
                 </button>
               </div>
             </form>
             <p className="muted" style={{ fontSize: 12 }}>Safe to retry. One tap can never charge you twice.</p>
-            {d.myNextContributionAt && (
+            {blocked && nextOpensAt ? (
               <p className="muted" style={{ fontSize: 12 }}>
-                Next contribution opens {new Date(d.myNextContributionAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.
+                Next contribution opens {nextOpensAt.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.
               </p>
-            )}
+            ) : null}
           </div>
 
           <div className="card">

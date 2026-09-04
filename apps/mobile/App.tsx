@@ -8,6 +8,7 @@ import { api } from './src/api';
 import { AuthProvider, useAuth } from './src/auth';
 import { ThemeProvider, useTheme } from './src/theme';
 import { Logo } from './src/Logo';
+import { Loading } from './src/anim';
 import { LoginScreen } from './src/screens/Login';
 import { SetupScreen } from './src/screens/Setup';
 import { HomeScreen } from './src/screens/Home';
@@ -41,18 +42,22 @@ function Root() {
   const [seenAt, setSeenAt] = useState<string | null>(null);
   const [readIds, setReadIds] = useState<string[]>([]);
 
+  const reloadSeen = () => {
+    SecureStore.getItemAsync(SEEN_KEY).then(setSeenAt).catch(() => setSeenAt(null));
+    SecureStore.getItemAsync('circle.noticesRead').then((r) => {
+      try { setReadIds(r ? JSON.parse(r) : []); } catch { setReadIds([]); }
+    }).catch(() => setReadIds([]));
+  };
+
   const notices = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<Notice[]>('/notifications'),
   });
   useEffect(() => {
-    SecureStore.getItemAsync(SEEN_KEY).then(setSeenAt).catch(() => setSeenAt(null));
-    SecureStore.getItemAsync('circle.noticesRead').then((r) => {
-      try { setReadIds(r ? JSON.parse(r) : []); } catch { setReadIds([]); }
-    }).catch(() => setReadIds([]));
+    reloadSeen();
   }, [stack.length]);
 
-  if (!ready) return <View style={s.screen}><Text style={s.muted}>Loading…</Text></View>;
+  if (!ready) return <Loading label="Starting Circle…" />;
   if (!user) return <LoginScreen />;
   if (setupRequired) return <SetupScreen />;
 
@@ -107,7 +112,7 @@ function Root() {
         ) : top?.name === 'profile' ? (
           <ProfileScreen userId={top.id} onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} />
         ) : top?.name === 'notifications' ? (
-          <NotificationsScreen onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} />
+          <NotificationsScreen onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} onReadChange={reloadSeen} />
         ) : tab === 'home' ? (
           <HomeScreen
             onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])}

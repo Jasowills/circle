@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Text, View } from 'react-native';
 import { useTheme } from './theme';
+
+/** Themed loading state: spinner + label, centered with breathing room. */
+export function Loading({ label = 'Loading…' }: { label?: string }) {
+  const { s, palette } = useTheme();
+  return (
+    <View style={[s.screen, { alignItems: 'center', justifyContent: 'center', gap: 12 }]}>
+      <ActivityIndicator size="large" color={palette.text} />
+      <Text style={s.muted}>{label}</Text>
+    </View>
+  );
+}
 
 /** True when the OS asks for reduced motion. Animations render end-state. */
 export function useReducedMotion(): boolean {

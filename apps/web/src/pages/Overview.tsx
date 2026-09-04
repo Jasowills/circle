@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, type CircleSummary, type LedgerPage } from '../api';
+import { Loading } from '../Loading';
 import { money, statusLabel, timeAgo } from '../format';
 import { useAuth } from '../auth';
 import { I } from '../icons';
@@ -63,7 +64,7 @@ export function Overview() {
     enabled: list.length > 0,
   });
 
-  if (isLoading) return <p className="muted">Loading overview…</p>;
+  if (isLoading) return <Loading label="Loading overview…" />;
   if (error) return <div className="error">{(error as Error).message}</div>;
 
   const saved = list.reduce((s, c) => s + Number(c.balance), 0);

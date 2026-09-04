@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { Loading } from '../Loading';
 import { googleLoginUrl, useAuth } from '../auth';
 import { Logo } from '../Logo';
 
@@ -165,5 +166,5 @@ export function AuthCallback() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   if (err) return <div className="error">{err}</div>;
-  return <p className="muted">Signing you in…</p>;
+  return <Loading label="Signing you in…" />;
 }

@@ -6,6 +6,7 @@ import { api, type PersonProfile } from '../api';
 import { useTheme } from '../theme';
 import { statusLabel } from '../format';
 import { Avatar } from '../Avatar';
+import { Loading } from '../anim';
 
 export function ProfileScreen({ userId, onOpenCircle }: { userId: string; onOpenCircle: (id: string) => void }) {
   const { s, palette } = useTheme();
@@ -29,7 +30,7 @@ export function ProfileScreen({ userId, onOpenCircle }: { userId: string; onOpen
   });
 
   if (isLoading || !data) {
-    return <View style={s.screen}><Text style={s.muted}>Loading profile…</Text></View>;
+    return <Loading label="Loading profile…" />;
   }
   const { user, isSelf, sharedCircles, inviteTargets } = data;
 

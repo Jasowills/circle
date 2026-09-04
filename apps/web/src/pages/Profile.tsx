@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../api';
+import { Loading } from '../Loading';
 import { statusLabel } from '../format';
 
 interface Profile {
@@ -31,7 +32,7 @@ export function ProfilePage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
-  if (isLoading || !data) return <p className="muted">Loading profile…</p>;
+  if (isLoading || !data) return <Loading label="Loading profile…" />;
   const { user, isSelf, sharedCircles, inviteTargets } = data;
 
   return (

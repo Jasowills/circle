@@ -44,7 +44,7 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   invite_pending: 'mail-open-outline',
 };
 
-export function NotificationsScreen({ onOpenCircle }: { onOpenCircle: (id: string) => void }) {
+export function NotificationsScreen({ onOpenCircle, onReadChange }: { onOpenCircle: (id: string) => void; onReadChange?: () => void }) {
   const { s, palette } = useTheme();
   const qc = useQueryClient();
   const { data } = useQuery({
@@ -68,6 +68,7 @@ export function NotificationsScreen({ onOpenCircle }: { onOpenCircle: (id: strin
     setSeenAt(now);
     setRead([]);
     qc.invalidateQueries({ queryKey: ['notifications'] });
+    onReadChange?.();
   };
 
   const open = (n: Notice) => {
@@ -75,6 +76,7 @@ export function NotificationsScreen({ onOpenCircle }: { onOpenCircle: (id: strin
       const next = [...read, n.id];
       setRead(next);
       SecureStore.setItemAsync(READ_KEY, JSON.stringify(next)).catch(() => {});
+      onReadChange?.();
     }
     if (n.circleId) onOpenCircle(n.circleId);
   };

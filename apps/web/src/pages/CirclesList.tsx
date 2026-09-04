@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type CircleSummary } from '../api';
+import { Loading } from '../Loading';
 import { statusLabel } from '../format';
 
 export function CirclesList() {
@@ -52,7 +53,7 @@ export function CirclesList() {
     },
   });
 
-  if (isLoading) return <p className="muted">Loading circles…</p>;
+  if (isLoading) return <Loading label="Loading circles…" />;
   if (error) return <div className="error">{(error as Error).message}</div>;
   const list = tab === 'mine' ? (circles ?? []) : (found.data ?? []);
 

@@ -262,10 +262,14 @@ export class CirclesService {
     });
 
     // Scheduled circles pace contributions: at most N per week, evenly spaced.
-    if (currentCycle && circle.contributionsPerWeek) {
+    // Measured within the collecting cycle when there is one, otherwise
+    // across the whole circle (forming circles have no cycles yet).
+    if (circle.contributionsPerWeek) {
       const gap = (circle.cycleLengthDays * 86400000) / circle.contributionsPerWeek;
       const last = await this.prisma.ledgerEntry.findFirst({
-        where: { circleId, cycleId: currentCycle.id, userId },
+        where: currentCycle
+          ? { circleId, cycleId: currentCycle.id, userId }
+          : { circleId, userId },
         orderBy: { createdAt: 'desc' },
       });
       if (last && Date.now() - last.createdAt.getTime() < gap) {
@@ -326,10 +330,9 @@ export class CirclesService {
     const currentCycle = await this.prisma.circleCycle.findFirst({
       where: { circleId, status: 'collecting' },
     });
-    if (!currentCycle) return null;
     const gap = (circle.cycleLengthDays * 86400000) / circle.contributionsPerWeek;
     const last = await this.prisma.ledgerEntry.findFirst({
-      where: { circleId, cycleId: currentCycle.id, userId },
+      where: currentCycle ? { circleId, cycleId: currentCycle.id, userId } : { circleId, userId },
       orderBy: { createdAt: 'desc' },
     });
     if (!last || Date.now() - last.createdAt.getTime() >= gap) return null;

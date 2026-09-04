@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type WalletOverview, type WalletTx } from '../api';
+import { Loading } from '../Loading';
 
 function inOut(txns: WalletTx[], sign: 1 | -1): number {
   return txns.reduce((s, t) => s + (Math.sign(Number(t.amount)) === sign ? Math.abs(Number(t.amount)) : 0), 0);
@@ -37,7 +38,7 @@ export function WalletPage() {
   });
 
   const d = wallet.data;
-  if (wallet.isLoading) return <p className="muted">Loading wallet…</p>;
+  if (wallet.isLoading) return <Loading label="Loading wallet…" />;
   if (wallet.error) return <div className="error">{(wallet.error as Error).message}</div>;
 
   return (
