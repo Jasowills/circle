@@ -5,6 +5,7 @@ export interface Notice {
   id: string;
   kind:
     | 'payout_received'
+    | 'payout_waiting'
     | 'goal_hit'
     | 'member_joined'
     | 'contribute_due'
@@ -93,6 +94,22 @@ export class NotificationsService {
         where: { circleId: { in: myCircleIds }, status: 'collecting' },
         include: { circle: { select: { id: true, name: true } } },
       });
+
+      // Won pots waiting for my tap.
+      const waiting = await this.prisma.circleCycle.findMany({
+        where: { circleId: { in: myCircleIds }, status: 'payout_completed', recipientId: userId, payoutClaimedAt: null },
+        include: { circle: { select: { id: true, name: true } } },
+      });
+      for (const c of waiting) {
+        out.push({
+          id: `waiting-${c.id}`,
+          kind: 'payout_waiting',
+          title: `₦${Number(c.targetPot).toLocaleString()} waiting · ${c.circle.name}`,
+          body: `Cycle ${c.cycleNumber} is yours. Collect it into your wallet.`,
+          circleId: c.circleId,
+          at: c.endsAt,
+        });
+      }
       for (const c of collecting) {
         const mine = await this.prisma.ledgerEntry.count({
           where: { circleId: c.circleId, cycleId: c.id, userId },

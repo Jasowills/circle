@@ -94,7 +94,7 @@ function Root() {
 
       <View style={{ flex: 1 }}>
         {top?.name === 'detail' ? (
-          <CircleDetailScreen circleId={top.id} />
+          <CircleDetailScreen circleId={top.id} onOpenProfile={(id) => setStack([...stack, { name: 'profile', id }])} />
         ) : top?.name === 'create' ? (
           <CreateScreen
             onCreated={(id) => setStack([...stack.slice(0, -1), { name: 'detail', id }])}

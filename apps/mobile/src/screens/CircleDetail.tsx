@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
 import * as Crypto from 'expo-crypto';
@@ -10,7 +10,7 @@ import { AnimatedBar, AnimatedMoneyBar, FadeIn } from '../anim';
 import { Avatar } from '../Avatar';
 import { countdownText, statusLabel } from '../format';
 
-export function CircleDetailScreen({ circleId }: { circleId: string }) {
+export function CircleDetailScreen({ circleId, onOpenProfile }: { circleId: string; onOpenProfile?: (id: string) => void }) {
   const qc = useQueryClient();
   const { s, palette } = useTheme();
   const { user } = useAuth();
@@ -74,7 +74,27 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
 
   const accept = useMutation({
     mutationFn: () => api.post(`/circles/${circleId}/accept`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['circle', circleId] });
+      qc.invalidateQueries({ queryKey: ['circles'] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const setAuto = useMutation({
+    mutationFn: (body: { contribute?: boolean; collect?: boolean }) => api.patch(`/circles/${circleId}/auto`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circle', circleId] }),
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const claim = useMutation({
+    mutationFn: (cycleId: string) => api.post(`/circles/${circleId}/cycles/${cycleId}/claim`),
+    onSuccess: () => {
+      setMsg('Pot collected into your wallet.');
+      qc.invalidateQueries({ queryKey: ['circle', circleId] });
+      qc.invalidateQueries({ queryKey: ['cycles', circleId] });
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    },
     onError: (e: Error) => setMsg(e.message),
   });
 
@@ -162,10 +182,15 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
           <Text style={[s.h2, { marginTop: 8 }]}>₦{Number(d.contributionAmount).toLocaleString()}</Text>
         ) : null}
         {d.contributionAmount ? (
-          <Text style={[s.muted, { marginBottom: 4 }]}>Fixed step. This circle takes exactly this amount per tap.</Text>
+          <Text style={[s.muted, { marginBottom: 4 }]}>
+            Fixed step{d.contributionsPerWeek ? ` · ${d.contributionsPerWeek}× per week` : ''}. This circle takes exactly this amount per tap.
+          </Text>
         ) : (
           <TextInput style={s.input} value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor={palette.placeholder} />
         )}
+        {d.myNextContributionAt ? (
+          <Text style={[s.muted, { marginBottom: 4 }]}>Next contribution opens {new Date(d.myNextContributionAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.</Text>
+        ) : null}
         <TouchableOpacity
           style={s.btn}
           disabled={contribute.isPending || d.myMembership.status !== 'active'}
@@ -178,7 +203,12 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
       <View style={s.card}>
         <Text style={s.h3}>Members</Text>
         {d.members.map((m) => (
-          <TouchableOpacity key={m.userId} style={[s.row, { paddingVertical: 6, justifyContent: 'flex-start', gap: 10 }]}>
+          <TouchableOpacity
+            key={m.userId}
+            style={[s.row, { paddingVertical: 6, justifyContent: 'flex-start', gap: 10 }]}
+            onPress={() => onOpenProfile?.(m.userId)}
+            disabled={!onOpenProfile}
+          >
             <Avatar name={m.user.name} avatarUrl={m.user.avatarUrl} />
             <View style={{ flex: 1 }}>
               <Text style={s.text}>{m.user.name} <Text style={s.muted}>· {m.role} · {statusLabel(m.status)}</Text></Text>
@@ -187,6 +217,35 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
           </TouchableOpacity>
         ))}
       </View>
+
+      {d.myMembership.status === 'active' && d.contributionAmount ? (
+        <View style={s.card}>
+          <Text style={s.h3}>Autopilot</Text>
+          <Text style={[s.muted, { marginBottom: 8 }]}>Set it once. The circle handles the rest.</Text>
+          <View style={[s.row, { paddingVertical: 6 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.text}>Auto-contribute</Text>
+              <Text style={s.muted}>Pay the fixed step on schedule</Text>
+            </View>
+            <Switch
+              value={d.myAutopilot.contribute}
+              onValueChange={(v) => setAuto.mutate({ contribute: v })}
+              trackColor={{ true: palette.money, false: palette.panel2 }}
+            />
+          </View>
+          <View style={[s.row, { paddingVertical: 6 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.text}>Auto-collect payouts</Text>
+              <Text style={s.muted}>Off means pots wait for your tap</Text>
+            </View>
+            <Switch
+              value={d.myAutopilot.collect}
+              onValueChange={(v) => setAuto.mutate({ collect: v })}
+              trackColor={{ true: palette.money, false: palette.panel2 }}
+            />
+          </View>
+        </View>
+      ) : null}
 
       <View style={s.card}>
         <Text style={s.h3}>Circle facts</Text>
@@ -207,20 +266,43 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
       {(cycles.data ?? []).length > 0 && (
         <View style={s.card}>
           <Text style={s.h3}>Rotation schedule</Text>
-          {(cycles.data ?? []).map((c) => (
-            <View key={c.id} style={[s.row, { paddingVertical: 6 }]}>
-              <Avatar name={c.recipient.name} size={28} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.text}>Cycle {c.cycleNumber} · {c.recipient.name}</Text>
-                <Text style={s.muted}>
-                  {c.status === 'payout_completed' ? 'paid out' : c.status === 'collecting'
-                    ? `${Number(c.collected).toLocaleString()} / ${Number(c.targetPot).toLocaleString()}`
-                    : 'upcoming'}
-                </Text>
+          {(cycles.data ?? []).map((c) => {
+            const mine = c.recipient.id === user?.id;
+            const waiting = mine && c.status === 'payout_completed' && !c.payoutClaimedAt;
+            return (
+              <View key={c.id} style={[s.row, { paddingVertical: 8 }]}>
+                <View style={{
+                  borderWidth: c.status === 'collecting' ? 2 : 0,
+                  borderColor: palette.money,
+                  borderRadius: 18,
+                  padding: c.status === 'collecting' ? 2 : 0,
+                }}>
+                  <Avatar name={c.recipient.name} size={32} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.text}>Cycle {c.cycleNumber} · {mine ? 'You' : c.recipient.name}</Text>
+                  <Text style={s.muted}>
+                    {c.status === 'payout_completed'
+                      ? (c.payoutClaimedAt ? 'paid out' : 'won · waiting for you')
+                      : c.status === 'collecting'
+                        ? `${Number(c.collected).toLocaleString()} / ${Number(c.targetPot).toLocaleString()}`
+                        : 'upcoming'}
+                  </Text>
+                </View>
+                {waiting ? (
+                  <TouchableOpacity
+                    style={[s.btn, { marginTop: 0, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: palette.money }]}
+                    onPress={() => claim.mutate(c.id)}
+                    disabled={claim.isPending}
+                  >
+                    <Text style={[s.btnText, { color: '#06281a' }]}>Collect</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={[s.pill, c.status === 'collecting' && s.pillSolid, c.status === 'payout_completed' && s.pillMoney]}>{statusLabel(c.status)}</Text>
+                )}
               </View>
-              <Text style={[s.pill, c.status === 'collecting' && s.pillSolid, c.status === 'payout_completed' && s.pillMoney]}>{statusLabel(c.status)}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 

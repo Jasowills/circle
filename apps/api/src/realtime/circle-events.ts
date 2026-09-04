@@ -34,6 +34,10 @@ export class CircleEvents {
     this.broadcast(circleId, 'payout.completed', payload);
   }
 
+  payoutPending(circleId: string, payload: { cycleId: string; cycleNumber: number; recipientId: string; amount: string }) {
+    this.broadcast(circleId, 'payout.pending', payload);
+  }
+
   cycleAdvanced(circleId: string, payload: { cycleId: string; cycleNumber: number; recipientId: string }) {
     this.broadcast(circleId, 'cycle.advanced', payload);
   }

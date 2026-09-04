@@ -93,12 +93,13 @@ async function main() {
     });
   }
 
-  async function makeCircle({ name, contrib, ago, status, members, invitees = [] }) {
+  async function makeCircle({ name, contrib, ago, status, members, invitees = [], perWeek = 1 }) {
     const c = await prisma.circle.create({
       data: {
         name, goalAmount: contrib * 7 * members.length, currency: 'NGN', status,
         createdById: uid(members[0][0]),
         contributionAmount: contrib, targetMembers: members.length + invitees.length, cycleLengthDays: 7,
+        contributionsPerWeek: perWeek,
         createdAt: daysAgo(ago),
       },
     });
@@ -136,7 +137,7 @@ async function main() {
 
   // A. Lekki Mortgage Ajo — cycle 1 at 504,000/840,000 (60%).
   const a = await makeCircle({
-    name: 'Lekki Mortgage Ajo', contrib: 20000, ago: 14, status: 'active',
+    name: 'Lekki Mortgage Ajo', contrib: 20000, ago: 14, status: 'active', perWeek: 2,
     members: [['ada@circle.com', 'creator', 14], ['bayo@circle.com', 'member', 13], ['chiamaka@circle.com', 'member', 12], ['emeka@circle.com', 'member', 10], ['jasowills01@gmail.com', 'member', 8], ['james@circle.com', 'member', 7]],
   });
   const [a1] = await makeCycles(a.id, ['ada@circle.com', 'bayo@circle.com', 'chiamaka@circle.com', 'emeka@circle.com', 'jasowills01@gmail.com', 'james@circle.com'], 840000, 0, 2);
@@ -160,7 +161,7 @@ async function main() {
 
   // B. Ibeju Land Ajo — completed full rotation (70k = 7 daily payments each).
   const b = await makeCircle({
-    name: 'Ibeju Land Ajo', contrib: 10000, ago: 60, status: 'completed',
+    name: 'Ibeju Land Ajo', contrib: 10000, ago: 60, status: 'completed', perWeek: 2,
     members: [['bayo@circle.com', 'creator', 60], ['ada@circle.com', 'member', 58], ['funmi@circle.com', 'member', 55]],
   });
   const cyclesB = await makeCycles(b.id, ['bayo@circle.com', 'ada@circle.com', 'funmi@circle.com'], 210000, 3, 0);
@@ -195,7 +196,7 @@ async function main() {
 
   // G. Owambe Fund — James's fourth circle, mid first cycle.
   const g = await makeCircle({
-    name: 'Owambe Fund', contrib: 15000, ago: 9, status: 'active',
+    name: 'Owambe Fund', contrib: 15000, ago: 9, status: 'active', perWeek: 1,
     members: [['funmi@circle.com', 'creator', 9], ['james@circle.com', 'member', 8], ['tunde@circle.com', 'member', 7], ['amaka@circle.com', 'member', 6]],
   });
   const [g1] = await makeCycles(g.id, ['funmi@circle.com', 'james@circle.com', 'tunde@circle.com', 'amaka@circle.com'], 420000, 0, 3);
@@ -222,7 +223,7 @@ async function main() {
   // E. Demo Day Ajo — 1,000,000/1,050,000. James's next ₦50k tap completes it
   // and pays the full pot to James, live.
   const e = await makeCircle({
-    name: 'Demo Day Ajo', contrib: 50000, ago: 6, status: 'active',
+    name: 'Demo Day Ajo', contrib: 50000, ago: 6, status: 'active', perWeek: 3,
     members: [['ada@circle.com', 'creator', 6], ['bayo@circle.com', 'member', 5], ['james@circle.com', 'member', 4]],
   });
   const [e1] = await makeCycles(e.id, ['james@circle.com', 'ada@circle.com', 'bayo@circle.com'], 1050000, 0, 2);

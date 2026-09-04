@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { API_URL, api, getToken, type CircleDetail, type Cycle, type LedgerPage, type WalletOverview } from '../api';
@@ -7,6 +7,7 @@ import { countdownText, statusLabel } from '../format';
 
 export function CircleDetailPage() {
   const { id = '' } = useParams();
+  const nav = useNavigate();
   const qc = useQueryClient();
   const [amount, setAmount] = useState('1000');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -179,6 +180,11 @@ export function CircleDetailPage() {
               </div>
             </form>
             <p className="muted" style={{ fontSize: 12 }}>Safe to retry. One tap can never charge you twice.</p>
+            {d.myNextContributionAt && (
+              <p className="muted" style={{ fontSize: 12 }}>
+                Next contribution opens {new Date(d.myNextContributionAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.
+              </p>
+            )}
           </div>
 
           <div className="card">
@@ -201,14 +207,7 @@ export function CircleDetailPage() {
               <h3>Rotation schedule</h3>
               <ul className="feed">
                 {(cycles.data ?? []).map((c) => (
-                  <li key={c.id}>
-                    Cycle {c.cycleNumber} · {c.recipient.name} ·{' '}
-                    <span className="muted">
-                      {c.status === 'payout_completed' ? 'paid out' : c.status === 'collecting'
-                        ? `${Number(c.collected).toLocaleString()} / ${Number(c.targetPot).toLocaleString()}`
-                        : 'upcoming'}
-                    </span>
-                  </li>
+                  <ScheduleRow key={c.id} circleId={id} cycle={c} />
                 ))}
               </ul>
             </div>
@@ -233,7 +232,7 @@ export function CircleDetailPage() {
           <div className="card">
             <h3>Members</h3>
             {d.members.map((m) => (
-              <div className="member" key={m.userId}>
+              <div className="member" key={m.userId} onClick={() => nav(`/users/${m.userId}`)} style={{ cursor: 'pointer' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                   {m.user.avatarUrl ? (
                     <img className="avatar" src={m.user.avatarUrl} alt="" />
@@ -246,6 +245,10 @@ export function CircleDetailPage() {
               </div>
             ))}
           </div>
+
+          {d.myMembership.status === 'active' && d.contributionAmount ? (
+            <AutopilotCard circleId={id} contribute={d.myAutopilot.contribute} collect={d.myAutopilot.collect} />
+          ) : null}
 
           <div className="card">
             <h3>Invite</h3>
@@ -263,7 +266,7 @@ export function CircleDetailPage() {
             </form>
           </div>
 
-          {d.myMembership.role === 'creator' && (d.status === 'active' || d.status === 'goal_reached') && (
+          {d.myMembership.role === 'creator' && (d.status === 'active' || d.status === 'goal_reached' || d.status === 'completed') && (
             <div className="card">
               <h3>Close out</h3>
               <p className="muted" style={{ fontSize: 13 }}>Closing ends contributions for everyone. This cannot be undone.</p>
@@ -273,5 +276,76 @@ export function CircleDetailPage() {
         </div>
       </div>
     </>
+  );
+}
+
+function ScheduleRow({ circleId, cycle }: { circleId: string; cycle: Cycle }) {
+  const qc = useQueryClient();
+  const claim = useMutation({
+    mutationFn: () => api.post(`/circles/${circleId}/cycles/${cycle.id}/claim`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['circle', circleId] });
+      qc.invalidateQueries({ queryKey: ['cycles', circleId] });
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    },
+  });
+  const me = useMe();
+  const waiting = cycle.status === 'payout_completed' && !cycle.payoutClaimedAt && me?.id === cycle.recipient.id;
+  return (
+    <li>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span>
+          Cycle {cycle.cycleNumber} · {cycle.recipient.name} ·{' '}
+          <span className="muted">
+            {cycle.status === 'payout_completed'
+              ? (cycle.payoutClaimedAt ? 'paid out' : 'won · waiting')
+              : cycle.status === 'collecting'
+                ? `${Number(cycle.collected).toLocaleString()} / ${Number(cycle.targetPot).toLocaleString()}`
+                : 'upcoming'}
+          </span>
+        </span>
+        {waiting ? (
+          <button style={{ padding: '6px 14px' }} disabled={claim.isPending} onClick={() => claim.mutate()}>
+            Collect
+          </button>
+        ) : (
+          <span className={`pill ${cycle.status === 'payout_completed' ? 'completed' : ''}`}>{statusLabel(cycle.status)}</span>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function useMe() {
+  return useQuery({ queryKey: ['me'], queryFn: () => api.get<{ id: string }>('/me') }).data ?? null;
+}
+
+function AutopilotCard({ circleId, contribute, collect }: { circleId: string; contribute: boolean; collect: boolean }) {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState<string | null>(null);
+  const setAuto = useMutation({
+    mutationFn: (body: { contribute?: boolean; collect?: boolean }) => api.patch(`/circles/${circleId}/auto`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['circle', circleId] }),
+    onError: (e: Error) => setMsg(e.message),
+  });
+  const row = (label: string, hint: string, on: boolean, flip: () => void) => (
+    <div className="row" style={{ justifyContent: 'space-between', padding: '8px 0' }} key={label}>
+      <div>
+        <div style={{ fontWeight: 600 }}>{label}</div>
+        <div className="muted" style={{ fontSize: 12 }}>{hint}</div>
+      </div>
+      <button className={on ? '' : 'ghost'} style={{ padding: '6px 14px' }} disabled={setAuto.isPending} onClick={flip}>
+        {on ? 'On' : 'Off'}
+      </button>
+    </div>
+  );
+  return (
+    <div className="card">
+      <h3>Autopilot</h3>
+      <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>Set it once when you join. The circle handles the rest.</p>
+      {msg && <p className="muted">{msg}</p>}
+      {row('Auto-contribute', 'Pay the fixed step on schedule', contribute, () => setAuto.mutate({ contribute: !contribute }))}
+      {row('Auto-collect payouts', 'Off means pots wait for your tap', collect, () => setAuto.mutate({ collect: !collect }))}
+    </div>
   );
 }

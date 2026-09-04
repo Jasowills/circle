@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { useTheme } from '../theme';
 import { FadeIn } from '../anim';
@@ -24,12 +24,14 @@ const ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   member_joined: 'person-add-outline',
   contribute_due: 'time-outline',
   collect_soon: 'gift-outline',
+  payout_waiting: 'gift-outline',
   payout_countdown: 'hourglass-outline',
   invite_pending: 'mail-open-outline',
 };
 
 export function NotificationsScreen({ onOpenCircle }: { onOpenCircle: (id: string) => void }) {
   const { s, palette } = useTheme();
+  const qc = useQueryClient();
   const { data } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => api.get<Notice[]>('/notifications'),
@@ -41,9 +43,21 @@ export function NotificationsScreen({ onOpenCircle }: { onOpenCircle: (id: strin
 
   const list = data ?? [];
 
+  const markAllRead = () => {
+    SecureStore.setItemAsync(SEEN_KEY, new Date().toISOString()).catch(() => {});
+    qc.invalidateQueries({ queryKey: ['notifications'] });
+  };
+
   return (
     <View style={[s.screen, { flex: 1 }]}>
-      <Text style={[s.h1, { fontSize: 26, marginBottom: 12 }]}>Notifications</Text>
+      <View style={[s.row, { marginBottom: 12 }]}>
+        <Text style={[s.h1, { fontSize: 26 }]}>Notifications</Text>
+        {list.length > 0 && (
+          <TouchableOpacity onPress={markAllRead} hitSlop={8}>
+            <Text style={[s.muted, { fontWeight: '700' }]}>Mark all read</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       <FlatList
         data={list}
         keyExtractor={(n) => n.id}

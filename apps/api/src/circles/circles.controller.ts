@@ -1,7 +1,18 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsOptional } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CirclesService } from './circles.service';
 import { ContributeDto, CreateCircleDto, InviteDto } from './circles.dto';
+
+class AutoDto {
+  @IsOptional()
+  @IsBoolean()
+  contribute?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  collect?: boolean;
+}
 
 @Controller('circles')
 @UseGuards(JwtAuthGuard)
@@ -22,6 +33,7 @@ export class CirclesController {
       contributionAmount: dto.contributionAmount,
       targetMembers: dto.targetMembers,
       cycleLengthDays: dto.cycleLengthDays,
+      contributionsPerWeek: dto.contributionsPerWeek,
     });
   }
 
@@ -62,6 +74,23 @@ export class CirclesController {
   @HttpCode(200)
   join(@Req() req: { user: { id: string } }, @Param('id') id: string) {
     return this.circles.join(id, req.user.id);
+  }
+
+  /** Autopilot switches (auto-contribute, auto-collect) for my membership. */
+  @Patch(':id/auto')
+  auto(@Req() req: { user: { id: string } }, @Param('id') id: string, @Body() dto: AutoDto) {
+    return this.circles.setAuto(id, req.user.id, dto);
+  }
+
+  /** Collect a won pot that waited for a manual tap. */
+  @Post(':id/cycles/:cycleId/claim')
+  @HttpCode(200)
+  claim(
+    @Req() req: { user: { id: string } },
+    @Param('id') id: string,
+    @Param('cycleId') cycleId: string,
+  ) {
+    return this.circles.claimCycle(id, cycleId, req.user.id);
   }
 
   @Post(':id/contribute')

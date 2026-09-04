@@ -188,6 +188,22 @@ export function Overview() {
             <h3>Rotation</h3>
             <RotationPreview />
           </div>
+
+          {list.filter((c) => c.status === 'completed' || c.status === 'goal_reached').length > 0 && (
+            <div className="card">
+              <h3>Hall of fame</h3>
+              <ul className="feed">
+                {list.filter((c) => c.status === 'completed' || c.status === 'goal_reached').map((c) => (
+                  <li key={c.id} onClick={() => nav(`/circles/${c.id}`)} style={{ cursor: 'pointer' }}>
+                    {c.name}
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      Finished at ₦{Number(c.balance).toLocaleString()} · {c.activeMemberCount} members
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </>

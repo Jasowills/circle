@@ -23,6 +23,7 @@ export function CirclesList() {
   const [goal, setGoal] = useState('500000');
   const [daily, setDaily] = useState('20000');
   const [members, setMembers] = useState('5');
+  const [freq, setFreq] = useState(2);
   const [formErr, setFormErr] = useState<string | null>(null);
 
   const create = useMutation({
@@ -30,7 +31,7 @@ export function CirclesList() {
       api.post<CircleSummary>('/circles', {
         name,
         ...(mode === 'ajo'
-          ? { contributionAmount: Number(daily), targetMembers: Number(members) }
+          ? { contributionAmount: Number(daily), targetMembers: Number(members), contributionsPerWeek: freq }
           : { goalAmount: Number(goal) }),
       }),
     onSuccess: (c) => {
@@ -133,6 +134,14 @@ export function CirclesList() {
                 <input value={daily} onChange={(e) => setDaily(e.target.value)} type="number" min={1} required />
                 <label>Members (cycles)</label>
                 <input value={members} onChange={(e) => setMembers(e.target.value)} type="number" min={2} max={50} required />
+                <label>How often may members pay?</label>
+                <div className="row" style={{ gap: 8 }}>
+                  {[{ label: 'Weekly', value: 1 }, { label: '2× / week', value: 2 }, { label: '3× / week', value: 3 }, { label: 'Daily', value: 7 }].map((f) => (
+                    <button key={f.value} type="button" className={freq === f.value ? '' : 'ghost'} onClick={() => setFreq(f.value)} style={{ flex: 1, padding: '9px 4px', fontSize: 12 }}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
                 <p className="muted" style={{ fontSize: 12 }}>
                   Weekly pot: ₦{(Number(daily || 0) * 7 * Number(members || 0)).toLocaleString()}. Order is drawn once the circle fills.
                 </p>

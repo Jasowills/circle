@@ -111,6 +111,26 @@ export function HomeScreen({ onOpenCircle, onOpenPeople, onOpenNotifications }: 
         </FadeIn>
       ) : null}
 
+      {list.filter((c) => c.status === 'completed' || c.status === 'goal_reached').length > 0 && (
+        <FadeIn delay={220}>
+        <View style={s.card}>
+          <View style={s.row}>
+            <Text style={s.h3}>Hall of fame</Text>
+            <Ionicons name="trophy-outline" size={18} color={palette.money} />
+          </View>
+          {list.filter((c) => c.status === 'completed' || c.status === 'goal_reached').map((c) => (
+            <TouchableOpacity key={c.id} style={[s.row, { paddingVertical: 8 }]} onPress={() => onOpenCircle(c.id)}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.text}>{c.name}</Text>
+                <Text style={s.muted}>Finished at ₦{Number(c.balance).toLocaleString()} · {c.activeMemberCount} members</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={palette.faint} />
+            </TouchableOpacity>
+          ))}
+        </View>
+        </FadeIn>
+      )}
+
       <FadeIn delay={260}>
       <View style={s.card}>
         <View style={s.row}>

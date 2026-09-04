@@ -86,6 +86,7 @@ export interface Cycle {
   targetPot: number;
   collected: number;
   status: string;
+  payoutClaimedAt: string | null;
 }
 
 export interface CircleSummary {
@@ -105,8 +106,11 @@ export interface CircleSummary {
 export interface CircleDetail extends CircleSummary {
   myBalance: number;
   myMembership: { role: string; status: string };
+  myAutopilot: { contribute: boolean; collect: boolean };
+  myNextContributionAt: string | null;
   contributionAmount?: number | null;
   targetMembers?: number | null;
+  contributionsPerWeek?: number | null;
   cycleLengthDays: number;
   createdAt: string;
   currentCycle?: {

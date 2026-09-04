@@ -41,7 +41,7 @@ describe('Circle e2e (demo flow)', () => {
   afterAll(async () => {
     // FK-safe cleanup of everything this run created.
     const users = await prisma.user.findMany({
-      where: { email: { in: [emailA, emailB, emailPwd, `e2e-x-${stamp}@example.com`, `e2e-y-${stamp}@example.com`, `e2e-z-${stamp}@example.com`] } },
+      where: { email: { in: [emailA, emailB, emailPwd, `e2e-x-${stamp}@example.com`, `e2e-y-${stamp}@example.com`, `e2e-z-${stamp}@example.com`, `e2e-p-${stamp}@example.com`, `e2e-q-${stamp}@example.com`] } },
       select: { id: true },
     });
     const uids = users.map((u) => u.id);
@@ -246,6 +246,63 @@ describe('Circle e2e (demo flow)', () => {
       .set('Authorization', `Bearer ${tX}`)
       .send({ amount: 10, idempotencyKey: randomUUID() });
     expect(closed.status).toBe(400);
+  });
+
+  it('holds payouts for manual collect when auto-collect is off', async () => {
+    const p = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-p-${stamp}@example.com` });
+    const q = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-q-${stamp}@example.com` });
+    const tP = p.body.accessToken as string;
+    const tQ = q.body.accessToken as string;
+    const c = await request(baseUrl).post('/circles')
+      .set('Authorization', `Bearer ${tP}`)
+      .send({ name: 'E2E Hold', goalAmount: 14000, contributionAmount: 1000, targetMembers: 2 });
+    const rc = c.body.id as string;
+    createdCircleIds.push(rc);
+    await request(baseUrl).post(`/circles/${rc}/invite`)
+      .set('Authorization', `Bearer ${tP}`)
+      .send({ email: `e2e-q-${stamp}@example.com` });
+    await request(baseUrl).post(`/circles/${rc}/accept`)
+      .set('Authorization', `Bearer ${tQ}`);
+    const sched = await request(baseUrl).get(`/circles/${rc}/cycles`)
+      .set('Authorization', `Bearer ${tP}`);
+    const c1 = sched.body[0];
+    const rToken = c1.recipient.id === (p.body.userId as string) ? tP : tQ;
+    const otherToken = rToken === tP ? tQ : tP;
+
+    const auto = await request(baseUrl).patch(`/circles/${rc}/auto`)
+      .set('Authorization', `Bearer ${rToken}`)
+      .send({ collect: false });
+    expect(auto.status).toBe(200);
+    expect(auto.body.autoCollect).toBe(false);
+
+    const wBefore = await request(baseUrl).get('/wallet').set('Authorization', `Bearer ${rToken}`);
+    await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tP}`)
+      .send({ amount: 7000, idempotencyKey: randomUUID() });
+    await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tQ}`)
+      .send({ amount: 7000, idempotencyKey: randomUUID() });
+
+    const wHeld = await request(baseUrl).get('/wallet').set('Authorization', `Bearer ${rToken}`);
+    expect(Number(wHeld.body.balance)).toBe(Number(wBefore.body.balance) - 7000);
+    const sched2 = await request(baseUrl).get(`/circles/${rc}/cycles`)
+      .set('Authorization', `Bearer ${tP}`);
+    expect(sched2.body[0].status).toBe('payout_completed');
+
+    const stranger = await request(baseUrl).post(`/circles/${rc}/cycles/${c1.id}/claim`)
+      .set('Authorization', `Bearer ${otherToken}`);
+    expect(stranger.status).toBe(403);
+
+    const claim = await request(baseUrl).post(`/circles/${rc}/cycles/${c1.id}/claim`)
+      .set('Authorization', `Bearer ${rToken}`);
+    expect(claim.status).toBe(200);
+    expect(claim.body.collected).toBe(true);
+    const wAfter = await request(baseUrl).get('/wallet').set('Authorization', `Bearer ${rToken}`);
+    expect(Number(wAfter.body.balance)).toBe(Number(wHeld.body.balance) + 14000);
+
+    const again = await request(baseUrl).post(`/circles/${rc}/cycles/${c1.id}/claim`)
+      .set('Authorization', `Bearer ${rToken}`);
+    expect(again.status).toBe(400);
   });
 
   it('rejects contributions the wallet cannot cover', async () => {

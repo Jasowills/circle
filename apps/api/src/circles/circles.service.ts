@@ -26,7 +26,7 @@ export class CirclesService {
     name: string,
     goalAmount: number,
     currency?: string,
-    rotation?: { contributionAmount?: number; targetMembers?: number; cycleLengthDays?: number },
+    rotation?: { contributionAmount?: number; targetMembers?: number; cycleLengthDays?: number; contributionsPerWeek?: number },
   ) {
     const circle = await this.prisma.circle.create({
       data: {
@@ -37,6 +37,7 @@ export class CirclesService {
         contributionAmount: rotation?.contributionAmount,
         targetMembers: rotation?.targetMembers,
         cycleLengthDays: rotation?.cycleLengthDays ?? 7,
+        contributionsPerWeek: rotation?.contributionsPerWeek ?? null,
         memberships: {
           create: { userId: creatorId, role: 'creator', status: 'active', joinedAt: new Date() },
         },
@@ -88,6 +89,7 @@ export class CirclesService {
         targetPot: Number(c.targetPot),
         collected: await this.cycleCollected(circleId, c.id),
         status: c.status,
+        payoutClaimedAt: c.payoutClaimedAt,
       })),
     );
   }
@@ -138,8 +140,11 @@ export class CirclesService {
       contributionAmount: circle.contributionAmount !== null ? Number(circle.contributionAmount) : null,
       targetMembers: circle.targetMembers,
       cycleLengthDays: circle.cycleLengthDays,
+      contributionsPerWeek: circle.contributionsPerWeek,
       currentCycle: await this.currentCycleView(circleId),
       myMembership: { role: mine.role, status: mine.status },
+      myAutopilot: { contribute: mine.autoContribute, collect: mine.autoCollect },
+      myNextContributionAt: await this.nextContributionAt(circleId, viewerId),
       myBalance: await this.ledger.memberBalance(circleId, viewerId),
       members,
     };
@@ -330,15 +335,20 @@ export class CirclesService {
     return new Date(last.createdAt.getTime() + gap).toISOString();
   }
 
-  /** Toggle scheduled auto-contribute for my own membership. */
-  async setAuto(circleId: string, userId: string, enabled: boolean) {
+  /** Autopilot switches for my own membership. Contribute needs fixed steps. */
+  async setAuto(circleId: string, userId: string, opts: { contribute?: boolean; collect?: boolean }) {
     const m = await this.requireActiveMember(circleId, userId);
     const circle = await this.requireCircle(circleId);
-    if (enabled && circle.contributionAmount === null) {
-      throw new BadRequestException('Auto-contribute needs a fixed-step circle');
+    const data: { autoContribute?: boolean; autoCollect?: boolean } = {};
+    if (opts.contribute !== undefined) {
+      if (opts.contribute && circle.contributionAmount === null) {
+        throw new BadRequestException('Auto-contribute needs a fixed-step circle');
+      }
+      data.autoContribute = opts.contribute;
     }
-    await this.prisma.circleMembership.update({ where: { id: m.id }, data: { autoContribute: enabled } });
-    return { autoContribute: enabled };
+    if (opts.collect !== undefined) data.autoCollect = opts.collect;
+    const updated = await this.prisma.circleMembership.update({ where: { id: m.id }, data });
+    return { autoContribute: updated.autoContribute, autoCollect: updated.autoCollect };
   }
 
   /** Background runner: contribute the fixed step for everyone due. Skips the
@@ -384,29 +394,69 @@ export class CirclesService {
     });
     if (claimed.count === 0) return; // another worker paid it first
 
+    const recipientMembership = await this.prisma.circleMembership.findUnique({
+      where: { circleId_userId: { circleId, userId: cycle.recipientId } },
+    });
+    if (recipientMembership?.autoCollect === false) {
+      this.events.payoutPending(circleId, {
+        cycleId,
+        cycleNumber: cycle.cycleNumber,
+        recipientId: cycle.recipientId,
+        amount: Number(cycle.targetPot).toString(),
+      });
+      return this.advanceCycle(circleId);
+    }
+
+    await this.creditPayout(circleId, cycle);
+    return this.advanceCycle(circleId);
+  }
+
+  /** Credit a won pot. Idempotent per cycle: collecting twice pays once. */
+  private async creditPayout(circleId: string, cycle: { id: string; cycleNumber: number; recipientId: string; targetPot: { toString(): string } }): Promise<boolean> {
     const wallet = await this.wallet.getWallet(cycle.recipientId);
-    await this.prisma.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        amount: cycle.targetPot,
-        type: 'circle_payout',
-        relatedCircleId: circleId,
-        relatedCycleId: cycleId,
-        idempotencyKey: `payout:${cycleId}`,
-      },
-    }).catch(async (err: unknown) => {
-      // Retried payout after a crash between claim and credit: already paid.
-      if (typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002') return null;
+    try {
+      await this.prisma.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          amount: cycle.targetPot.toString(),
+          type: 'circle_payout',
+          relatedCircleId: circleId,
+          relatedCycleId: cycle.id,
+          idempotencyKey: `payout:${cycle.id}`,
+        },
+      });
+    } catch (err: unknown) {
+      // Already paid (retry after a crash, or auto-collect switched on late).
+      if (typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002') return false;
       throw err;
+    }
+    await this.prisma.circleCycle.updateMany({
+      where: { id: cycle.id, payoutClaimedAt: null },
+      data: { payoutClaimedAt: new Date() },
     });
     this.state.logTransition(circleId, 'collecting', 'payout_completed', `cycle_${cycle.cycleNumber}`);
     this.events.payoutCompleted(circleId, {
-      cycleId,
+      cycleId: cycle.id,
       cycleNumber: cycle.cycleNumber,
       recipientId: cycle.recipientId,
       amount: Number(cycle.targetPot).toString(),
     });
+    return true;
+  }
 
+  /** Manual collect for a won-but-waiting pot. */
+  async claimCycle(circleId: string, cycleId: string, userId: string) {
+    const cycle = await this.prisma.circleCycle.findUnique({ where: { id: cycleId } });
+    if (!cycle || cycle.circleId !== circleId) throw new NotFoundException('Cycle not found');
+    if (cycle.status !== 'payout_completed') throw new BadRequestException('Nothing to collect yet');
+    if (cycle.recipientId !== userId) throw new ForbiddenException('Only the recipient collects this pot');
+    if (cycle.payoutClaimedAt) throw new BadRequestException('Already collected');
+    await this.requireActiveMember(circleId, userId);
+    const paid = await this.creditPayout(circleId, cycle);
+    return { collected: paid };
+  }
+
+  private async advanceCycle(circleId: string): Promise<void> {
     const next = await this.prisma.circleCycle.findFirst({
       where: { circleId, status: 'pending' },
       orderBy: { cycleNumber: 'asc' },

@@ -89,6 +89,8 @@ model CircleCycle {
   endsAt        DateTime
   targetPot     Decimal     @db.Decimal(18, 2)
   status        CycleStatus @default(pending)
+  // Set when the payout actually credits. Null = won, waiting to collect.
+  payoutClaimedAt DateTime?
 
   @@unique([circleId, cycleNumber])
   @@index([circleId])
@@ -138,6 +140,8 @@ model CircleMembership {
   joinedAt  DateTime?
   // When true, the background job contributes the fixed step on schedule.
   autoContribute Boolean @default(false)
+  // When false, your payouts wait for a manual tap instead of landing instantly.
+  autoCollect Boolean @default(true)
 
   @@unique([circleId, userId])
   @@index([userId])

@@ -8,6 +8,8 @@ import { Setup } from './pages/Setup';
 import { Overview } from './pages/Overview';
 import { WalletPage } from './pages/Wallet';
 import { SettingsPage } from './pages/Settings';
+import { NotificationsPage } from './pages/Notifications';
+import { ProfilePage } from './pages/Profile';
 import { CirclesList } from './pages/CirclesList';
 import { CircleDetailPage } from './pages/CircleDetail';
 
@@ -32,6 +34,9 @@ function Shell() {
         <NavLink to="/wallet" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
           <I.wallet size={17} /> Wallet
         </NavLink>
+        <NavLink to="/notifications" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
+          <I.bell size={17} /> Activity
+        </NavLink>
         <NavLink to="/settings" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
           <I.gear size={17} /> Settings
         </NavLink>
@@ -52,6 +57,8 @@ function Shell() {
           <Route path="/" element={<Overview />} />
           <Route path="/circles" element={<CirclesList />} />
           <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/users/:id" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/setup" element={<Setup />} />
           <Route path="/circles/:id" element={<CircleDetailPage />} />

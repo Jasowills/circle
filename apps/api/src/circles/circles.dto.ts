@@ -42,6 +42,13 @@ export class CreateCircleDto {
   @Min(1)
   @Max(30)
   cycleLengthDays?: number;
+
+  /** Times per week a member may contribute. Null = whenever. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  contributionsPerWeek?: number;
 }
 
 export class InviteDto {
