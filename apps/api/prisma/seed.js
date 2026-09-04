@@ -30,8 +30,9 @@ const LEDGER_A = [
   ['bayo@circle.com', 250000, 33], ['emeka@circle.com', 200000, 29],
   ['chiamaka@circle.com', 250000, 25], ['ada@circle.com', 500000, 20],
   ['jasowills01@gmail.com', 150000, 18], ['bayo@circle.com', 300000, 14],
-  ['emeka@circle.com', 150000, 10], ['chiamaka@circle.com', 200000, 6],
-  ['jasowills01@gmail.com', 100000, 5], ['ada@circle.com', 100000, 2],
+  ['emeka@circle.com', 150000, 10], ['james@circle.com', 100000, 11],
+  ['chiamaka@circle.com', 200000, 6],
+  ['jasowills01@gmail.com', 100000, 5], ['james@circle.com', 75000, 3], ['ada@circle.com', 100000, 2],
 ];
 
 // Sums to exactly 2,000,000 (goal_reached).
@@ -81,7 +82,7 @@ async function main() {
   const a = await prisma.circle.create({
     data: { name: 'Lekki Mortgage Deposit', goalAmount: 5000000, currency: 'NGN', status: 'active', createdById: uid('ada@circle.com'), createdAt: daysAgo(45) },
   });
-  for (const [email, role, joined] of [['ada@circle.com', 'creator', 45], ['bayo@circle.com', 'member', 44], ['chiamaka@circle.com', 'member', 40], ['emeka@circle.com', 'member', 30], ['jasowills01@gmail.com', 'member', 20]]) {
+  for (const [email, role, joined] of [['ada@circle.com', 'creator', 45], ['bayo@circle.com', 'member', 44], ['chiamaka@circle.com', 'member', 40], ['emeka@circle.com', 'member', 30], ['jasowills01@gmail.com', 'member', 20], ['james@circle.com', 'member', 12]]) {
     await prisma.circleMembership.create({ data: { circleId: a.id, userId: uid(email), role, status: 'active', invitedAt: daysAgo(joined + 1), joinedAt: daysAgo(joined) } });
   }
   for (const [email, amount, ago] of LEDGER_A) await contribute(a.id, email, amount, ago);

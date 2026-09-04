@@ -33,7 +33,6 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [showDev, setShowDev] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const last = slide === SLIDES.length - 1;
   const s = SLIDES[slide];
@@ -105,37 +104,35 @@ export function Login() {
                   ? 'New here? Create your account with Google in seconds.'
                   : 'Welcome back. Sign in with the Google account you joined with.'}
               </p>
-              <a className="btn" href={googleLoginUrl} style={{ width: '100%', textAlign: 'center' }}>
+              <a className="btn ghost" href={googleLoginUrl} style={{ width: '100%', textAlign: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.3H12v4.3h6.5c-.1 1.1-.8 2.7-2.4 3.8l-.1.1 3.5 2.7.2.1c2.2-2 3.8-5 3.8-8.7z" />
+                  <path fill="#34A853" d="M12 24c3.2 0 6-1.1 7.9-2.9l-3.8-2.9c-1 .7-2.4 1.2-4.1 1.2-3.1 0-5.8-2.1-6.8-5l-.1.1-3.6 2.8v.1C3.5 21.3 7.5 24 12 24z" />
+                  <path fill="#FBBC05" d="M5.2 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4l-.1-.1-3.6-2.8-.1.1C.5 8.6 0 10.2 0 12s.5 3.4 1.4 4.9l3.8-2.5z" />
+                  <path fill="#EA4335" d="M12 4.7c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.9 1.1 15.2 0 12 0 7.5 0 3.5 2.7 1.4 6.9l3.8 2.8c1-2.9 3.7-5 6.8-5z" />
+                </svg>
                 Continue with Google
               </a>
-              <p style={{ margin: '14px 0 0' }}>
-                <button className="ghost" style={{ padding: '6px 12px', fontSize: 12 }} onClick={() => setShowDev(!showDev)}>
-                  Trouble signing in?
-                </button>
+              <div className="divider">or continue with email</div>
+              {err && <div className="error">{err}</div>}
+              <form onSubmit={devLogin}>
+                <label>Email</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="james@circle.com" required />
+                {mode === 'join' && (
+                  <>
+                    <label>Name</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="James" />
+                  </>
+                )}
+                <label>Password (8+ characters)</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+                <div style={{ marginTop: 12 }}>
+                  <button type="submit" style={{ width: '100%' }}>{mode === 'join' ? 'Create account' : 'Sign in'}</button>
+                </div>
+              </form>
+              <p className="muted" style={{ fontSize: 12 }}>
+                Seeded login: <code>james@circle.com</code> / <code>12345678</code>
               </p>
-              {showDev && (
-                <>
-                  <p className="muted" style={{ fontSize: 13 }}>
-                    No Google account handy? Use email + password instead. Try <code>james@circle.com</code> / <code>12345678</code> on a seeded database.
-                  </p>
-                  {err && <div className="error">{err}</div>}
-                  <form onSubmit={devLogin}>
-                    <label>Email</label>
-                    <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="james@circle.com" required />
-                    {mode === 'join' && (
-                      <>
-                        <label>Name</label>
-                        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="James" />
-                      </>
-                    )}
-                    <label>Password (8+ characters)</label>
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
-                    <div style={{ marginTop: 12 }}>
-                      <button type="submit" style={{ width: '100%' }}>{mode === 'join' ? 'Create account' : 'Sign in'}</button>
-                    </div>
-                  </form>
-                </>
-              )}
             </>
           )}
           <p className="photo-credit">Photos: Pexels</p>

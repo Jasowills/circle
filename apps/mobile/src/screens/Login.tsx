@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Constants from 'expo-constants';
+import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { API_URL, api } from '../api';
@@ -165,13 +166,15 @@ export function LoginScreen() {
             <Text style={s.muted}>Running in Expo Go, so sign in below. Google needs a dev build.</Text>
           ) : (
             <TouchableOpacity
-              style={s.btn}
+              style={[s.btnGhost, { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 }]}
               disabled={!request}
               onPress={() => promptAsync().catch((e: Error) => setErr(e.message))}
             >
-              <Text style={s.btnText}>Continue with Google</Text>
+              <Ionicons name="logo-google" size={18} color={palette.text} />
+              <Text style={s.btnGhostText}>Continue with Google</Text>
             </TouchableOpacity>
           )}
+          <Text style={[s.muted, { textAlign: 'center', marginTop: 12 }]}>or continue with email</Text>
           {!inExpoGo && (
             <TouchableOpacity style={s.btnGhost} onPress={() => setShowDev(!showDev)}>
               <Text style={s.btnGhostText}>Trouble signing in?</Text>
