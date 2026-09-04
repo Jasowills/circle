@@ -73,7 +73,8 @@ Seeds five demo accounts (`ada`, `bayo`, `chiamaka`, `emeka`, `funmi` at
 `jasowills01@gmail.com` (you): an active
 ₦5,000,000 mortgage circle at 70% with six weeks of contribution history, a
 completed ₦2,000,000 land circle at goal, and a forming emergency fund with
-your invite still pending. Log in as `jasowills01@gmail.com` (Google on web,
+your invite still pending. **Demo Day Ajo** sits one ₦50,000 tap from paying
+₦1,050,000 to James live — re-run the seed any time to reset it for another take. Log in as `jasowills01@gmail.com` (Google on web,
 dev sign-in on mobile) to see it all. Re-running the seed wipes and recreates
 these accounts.
 

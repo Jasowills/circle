@@ -6,20 +6,15 @@ import * as Crypto from 'expo-crypto';
 import { API_URL, api, getAccessToken, type CircleDetail, type Cycle, type WalletOverview } from '../api';
 import { useTheme } from '../theme';
 import { useAuth } from '../auth';
-import { AnimatedBar, AnimatedMoneyBar, FadeIn, PulseDot } from '../anim';
+import { AnimatedBar, AnimatedMoneyBar, FadeIn } from '../anim';
 import { Avatar } from '../Avatar';
-
-interface FeedItem {
-  id: string;
-  text: string;
-}
+import { countdownText, statusLabel } from '../format';
 
 export function CircleDetailScreen({ circleId }: { circleId: string }) {
   const qc = useQueryClient();
   const { s, palette } = useTheme();
   const { user } = useAuth();
-  const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [amount, setAmount] = useState('1000');
+  const [amount, setAmount] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
 
   const detail = useQuery({
@@ -36,39 +31,25 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
     queryFn: () => api.get<WalletOverview>('/wallet'),
   });
 
-  const push = (text: string) =>
-    setFeed((f) => [{ id: `${Date.now()}-${Math.random()}`, text }, ...f].slice(0, 30));
-
+  // Live room keeps every number on this screen fresh. There is no feed UI
+  // on purpose: updates land directly in balances, pots and schedules.
   useEffect(() => {
     let socket: ReturnType<typeof io> | null = null;
     let alive = true;
+    const refresh = () => {
+      qc.invalidateQueries({ queryKey: ['circle', circleId] });
+      qc.invalidateQueries({ queryKey: ['cycles', circleId] });
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    };
     getAccessToken().then((token) => {
       if (!alive || !token) return;
       socket = io(API_URL, { transports: ['websocket'] });
       socket.on('connect', () => socket?.emit('join', { circleId, token }));
-      socket.on('contribution.created', (p: { amount: string }) => {
-        push(`New contribution of ${p.amount}`);
-        qc.invalidateQueries({ queryKey: ['circle', circleId] });
-      });
-      socket.on('member.joined', () => {
-        push('A member joined');
-        qc.invalidateQueries({ queryKey: ['circle', circleId] });
-      });
-      socket.on('circle.status_changed', (p: { from: string; to: string }) => {
-        push(`Circle is now ${p.to.replace('_', ' ')}`);
-        qc.invalidateQueries({ queryKey: ['circle', circleId] });
-      });
-      socket.on('payout.completed', (p: { cycleNumber: number; amount: string }) => {
-        push(`Cycle ${p.cycleNumber} paid out: ${Number(p.amount).toLocaleString()}`);
-        qc.invalidateQueries({ queryKey: ['circle', circleId] });
-        qc.invalidateQueries({ queryKey: ['cycles', circleId] });
-        qc.invalidateQueries({ queryKey: ['wallet'] });
-      });
-      socket.on('cycle.advanced', (p: { cycleNumber: number }) => {
-        push(`Cycle ${p.cycleNumber} is now collecting`);
-        qc.invalidateQueries({ queryKey: ['circle', circleId] });
-        qc.invalidateQueries({ queryKey: ['cycles', circleId] });
-      });
+      socket.on('contribution.created', refresh);
+      socket.on('member.joined', refresh);
+      socket.on('circle.status_changed', refresh);
+      socket.on('payout.completed', refresh);
+      socket.on('cycle.advanced', refresh);
     });
     return () => {
       alive = false;
@@ -116,7 +97,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
         <View style={s.row}>
           <Text style={s.h2}>{d.name}</Text>
           <Text style={[s.pill, (d.status === 'active') && s.pillSolid, (d.status === 'goal_reached' || d.status === 'completed') && s.pillMoney]}>
-            {d.status.replace('_', ' ')}
+            {statusLabel(d.status)}
           </Text>
         </View>
         <AnimatedBar progress={d.progress} />
@@ -126,6 +107,13 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
         <Text style={s.muted}>Your share: {Number(d.myBalance).toLocaleString()}</Text>
       </View>
       </FadeIn>
+
+      {(d.status === 'completed' || d.status === 'goal_reached') && (
+        <View style={s.card}>
+          <Text style={s.h3}>Rotation complete</Text>
+          <Text style={s.muted}>Every cycle paid out. This circle is done collecting.</Text>
+        </View>
+      )}
 
       {d.currentCycle ? (
         <FadeIn delay={120}>
@@ -144,6 +132,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
           <AnimatedMoneyBar progress={d.currentCycle.collected / d.currentCycle.targetPot} />
           <Text style={s.muted}>
             {Number(d.currentCycle.collected).toLocaleString()} of {Number(d.currentCycle.targetPot).toLocaleString()} {d.currency} pot
+            {countdownText(d.currentCycle.endsAt) ? ` · ${countdownText(d.currentCycle.endsAt)}` : ''}
           </Text>
         </View>
         </FadeIn>
@@ -169,13 +158,20 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
           <Text style={s.h3}>Contribute</Text>
           <Text style={s.muted}>Wallet ₦{Number(wallet.data?.balance ?? 0).toLocaleString()}</Text>
         </View>
-        <TextInput style={s.input} value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor={palette.placeholder} />
+        {d.contributionAmount ? (
+          <Text style={[s.h2, { marginTop: 8 }]}>₦{Number(d.contributionAmount).toLocaleString()}</Text>
+        ) : null}
+        {d.contributionAmount ? (
+          <Text style={[s.muted, { marginBottom: 4 }]}>Fixed step. This circle takes exactly this amount per tap.</Text>
+        ) : (
+          <TextInput style={s.input} value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder="1000" placeholderTextColor={palette.placeholder} />
+        )}
         <TouchableOpacity
           style={s.btn}
           disabled={contribute.isPending || d.myMembership.status !== 'active'}
-          onPress={() => contribute.mutate(Number(amount))}
+          onPress={() => contribute.mutate(d.contributionAmount ?? Number(amount))}
         >
-          <Text style={s.btnText}>{contribute.isPending ? 'Sending…' : 'Contribute'}</Text>
+          <Text style={s.btnText}>{contribute.isPending ? 'Sending…' : d.contributionAmount ? `Contribute ₦${Number(d.contributionAmount).toLocaleString()}` : 'Contribute'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -185,7 +181,7 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
           <TouchableOpacity key={m.userId} style={[s.row, { paddingVertical: 6, justifyContent: 'flex-start', gap: 10 }]}>
             <Avatar name={m.user.name} avatarUrl={m.user.avatarUrl} />
             <View style={{ flex: 1 }}>
-              <Text style={s.text}>{m.user.name} <Text style={s.muted}>· {m.role} · {m.status}</Text></Text>
+              <Text style={s.text}>{m.user.name} <Text style={s.muted}>· {m.role} · {statusLabel(m.status)}</Text></Text>
             </View>
             <Text style={s.text}>{Number(m.balance).toLocaleString()}</Text>
           </TouchableOpacity>
@@ -206,22 +202,12 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
                     : 'upcoming'}
                 </Text>
               </View>
-              <Text style={[s.pill, c.status === 'collecting' && s.pillSolid]}>{c.status.replace('_', ' ')}</Text>
+              <Text style={[s.pill, c.status === 'collecting' && s.pillSolid, c.status === 'payout_completed' && s.pillMoney]}>{statusLabel(c.status)}</Text>
             </View>
           ))}
         </View>
       )}
 
-      <View style={s.card}>
-        <View style={[s.row, { justifyContent: 'flex-start', gap: 2 }]}>
-          <PulseDot />
-          <Text style={s.h3}>Live feed</Text>
-        </View>
-        {feed.length === 0 && <Text style={s.muted}>Live. New contributions show up here.</Text>}
-        {feed.map((f) => (
-          <Text key={f.id} style={[s.text, { paddingVertical: 3 }]}>{f.text}</Text>
-        ))}
-      </View>
     </ScrollView>
   );
 }

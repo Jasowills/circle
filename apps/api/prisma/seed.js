@@ -1,13 +1,15 @@
-/* Demo seed v2: real Ajo rotation circles with funded wallets.
+/* Demo seed v3: consistent Ajo world. Every contribution is a whole multiple
+ * of its circle's daily amount, so the demo never contradicts the app's own
+ * fixed-step rule. Wallets open at ₦5M demo credit so all history stays positive.
  * Run: DATABASE_URL="postgresql://circle:circle@localhost:5432/circle" node prisma/seed.js
- * Idempotent: wipes the demo accounts first, then recreates them.
  *
  * World:
- *  A. "Lekki Mortgage Ajo" — 5 members, ₦20k/day, weekly pots of ₦700k,
- *     cycle 1 collecting mid-way. This is the circle you live in.
- *  B. "Ibeju Land Ajo" — 3 members, one full rotation behind it, completed.
- *  C. "Emergency Fund" — forming, your invite pending.
- *  D. "Saturday Thrift" — forming, 1 seat taken, discoverable.
+ *  A. "Lekki Mortgage Ajo" — 6 members, ₦20k/day, ₦840k pots, cycle 1 at 60%.
+ *  B. "Ibeju Land Ajo" — completed full rotation, payouts in wallets.
+ *  C. "Emergency Fund" — forming, Jason + James invited.
+ *  D. "Saturday Thrift" — forming, discoverable.
+ *  E. "Demo Day Ajo" — 3 members, ₦50k/day, ₦1.05M pot at 1,000,000/1,050,000.
+ *     One ₦50k tap from James completes it and pays James live on camera.
  */
 const { PrismaClient } = require('@prisma/client');
 const { randomUUID } = require('crypto');
@@ -15,6 +17,7 @@ const { hashSync } = require('bcryptjs');
 
 const prisma = new PrismaClient();
 const daysAgo = (n, h = 12) => new Date(Date.now() - n * 86400000 - h * 3600000);
+const daysOut = (n) => new Date(Date.now() + n * 86400000);
 
 const PEOPLE = [
   { email: 'ada@circle.com', name: 'Adaeze Okafor' },
@@ -62,22 +65,21 @@ async function main() {
       },
     });
     users[p.email] = u.id;
-    // Funded wallet with a starting balance for everyone.
     const w = await prisma.wallet.create({ data: { userId: u.id } });
     await prisma.walletTransaction.create({
-      data: { walletId: w.id, amount: 500000, type: 'demo_fund', idempotencyKey: 'initial-demo-fund' },
+      data: { walletId: w.id, amount: 5000000, type: 'demo_fund', idempotencyKey: 'initial-demo-fund' },
     });
   }
   const uid = (email) => users[email];
 
-  async function fundTx(circleId, cycleId, email, amount, ago, type = 'contribution') {
+  async function fundTx(circleId, cycleId, email, amount, ago) {
     const w = await prisma.wallet.findUniqueOrThrow({ where: { userId: uid(email) } });
     const key = randomUUID();
     await prisma.walletTransaction.create({
       data: { walletId: w.id, amount: -amount, type: 'circle_contribution', relatedCircleId: circleId, relatedCycleId: cycleId, idempotencyKey: `contrib:${key}` },
     });
     await prisma.ledgerEntry.create({
-      data: { circleId, userId: uid(email), amount, type, idempotencyKey: key, cycleId, createdAt: daysAgo(ago) },
+      data: { circleId, userId: uid(email), amount, type: 'contribution', idempotencyKey: key, cycleId, createdAt: daysAgo(ago) },
     });
   }
 
@@ -88,7 +90,7 @@ async function main() {
     });
   }
 
-  async function makeCircle({ name, contrib, members, ago, status, invitees = [] }) {
+  async function makeCircle({ name, contrib, ago, status, members, invitees = [] }) {
     const c = await prisma.circle.create({
       data: {
         name, goalAmount: contrib * 7 * members.length, currency: 'NGN', status,
@@ -110,16 +112,16 @@ async function main() {
     return c;
   }
 
-  async function makeCycles(circleId, order, targetPot, collectedCycle = 0) {
+  async function makeCycles(circleId, order, targetPot, collectedCount, endsInDays) {
     const ids = [];
     for (let n = 0; n < order.length; n++) {
-      const done = n < collectedCycle;
-      const current = n === collectedCycle;
+      const done = n < collectedCount;
+      const current = n === collectedCount;
       const row = await prisma.circleCycle.create({
         data: {
           circleId, cycleNumber: n + 1, recipientId: uid(order[n]),
-          startsAt: done || current ? daysAgo(7 * (order.length - n)) : new Date(0),
-          endsAt: done || current ? daysAgo(7 * (order.length - n) - 7) : new Date(0),
+          startsAt: done || current ? daysAgo(7) : new Date(0),
+          endsAt: done ? daysAgo(1) : current ? daysOut(endsInDays) : new Date(0),
           targetPot, status: done ? 'payout_completed' : current ? 'collecting' : 'pending',
         },
       });
@@ -129,25 +131,28 @@ async function main() {
     return ids;
   }
 
-  // A. Lekki Mortgage Ajo — 5 members, ₦20k/day, ₦700k weekly pots, cycle 1 at ~60%.
+  // A. Lekki Mortgage Ajo — cycle 1 at 504,000/840,000 (60%).
   const a = await makeCircle({
-    name: 'Lekki Mortgage Ajo', contrib: 20000, ago: 20, status: 'active',
-    members: [['ada@circle.com', 'creator', 20], ['bayo@circle.com', 'member', 19], ['chiamaka@circle.com', 'member', 17], ['jasowills01@gmail.com', 'member', 10], ['james@circle.com', 'member', 8]],
+    name: 'Lekki Mortgage Ajo', contrib: 20000, ago: 14, status: 'active',
+    members: [['ada@circle.com', 'creator', 14], ['bayo@circle.com', 'member', 13], ['chiamaka@circle.com', 'member', 12], ['emeka@circle.com', 'member', 10], ['jasowills01@gmail.com', 'member', 8], ['james@circle.com', 'member', 7]],
   });
-  const [a1] = await makeCycles(a.id, ['ada@circle.com', 'bayo@circle.com', 'chiamaka@circle.com', 'jasowills01@gmail.com', 'james@circle.com'], 700000);
+  const [a1] = await makeCycles(a.id, ['ada@circle.com', 'bayo@circle.com', 'chiamaka@circle.com', 'emeka@circle.com', 'jasowills01@gmail.com', 'james@circle.com'], 840000, 0, 2);
   const A1 = [
-    ['ada@circle.com', 140000, 6], ['bayo@circle.com', 140000, 6],
-    ['chiamaka@circle.com', 140000, 5], ['jasowills01@gmail.com', 60000, 4],
-    ['james@circle.com', 40000, 3],
+    ['ada@circle.com', 6], ['bayo@circle.com', 5], ['chiamaka@circle.com', 5],
+    ['emeka@circle.com', 3], ['jasowills01@gmail.com', 3], ['james@circle.com', 3],
   ];
-  for (const [email, amount, ago] of A1) await fundTx(a.id, a1, email, amount, ago);
+  let day = 6;
+  for (const [email, count] of A1) {
+    for (let i = 0; i < count; i++) await fundTx(a.id, a1, email, 20000, day);
+    day -= 1;
+  }
 
-  // B. Ibeju Land Ajo — finished a full 3-cycle rotation.
+  // B. Ibeju Land Ajo — completed full rotation (70k = 7 daily payments each).
   const b = await makeCircle({
     name: 'Ibeju Land Ajo', contrib: 10000, ago: 60, status: 'completed',
     members: [['bayo@circle.com', 'creator', 60], ['ada@circle.com', 'member', 58], ['funmi@circle.com', 'member', 55]],
   });
-  const cyclesB = await makeCycles(b.id, ['bayo@circle.com', 'ada@circle.com', 'funmi@circle.com'], 210000, 3);
+  const cyclesB = await makeCycles(b.id, ['bayo@circle.com', 'ada@circle.com', 'funmi@circle.com'], 210000, 3, 0);
   const B1 = [
     ['bayo@circle.com', 70000, 52], ['ada@circle.com', 70000, 51], ['funmi@circle.com', 70000, 50],
     ['bayo@circle.com', 70000, 45], ['ada@circle.com', 70000, 44], ['funmi@circle.com', 70000, 43],
@@ -158,21 +163,29 @@ async function main() {
   await payoutTx(b.id, cyclesB[1], 'ada@circle.com', 210000, 35);
   await payoutTx(b.id, cyclesB[2], 'funmi@circle.com', 210000, 28);
 
-  // C. Emergency Fund — forming, Jason + James invited.
+  // C + D — forming.
   await makeCircle({
     name: 'Emergency Fund', contrib: 5000, ago: 5, status: 'forming',
     members: [['chiamaka@circle.com', 'creator', 5]],
     invitees: [['jasowills01@gmail.com', 2], ['james@circle.com', 1]],
   });
-
-  // D. Saturday Thrift — forming, discoverable, one seat taken.
   await makeCircle({
     name: 'Saturday Thrift', contrib: 5000, ago: 3, status: 'forming',
     members: [['emeka@circle.com', 'creator', 3]],
     invitees: [['funmi@circle.com', 2]],
   });
 
-  console.log('seeded v2: A (active, cycle 1 collecting) B (completed) C+D (forming). Log in as jasowills01@gmail.com or james@circle.com/12345678.');
+  // E. Demo Day Ajo — 1,000,000/1,050,000. James's next ₦50k tap completes it
+  // and pays the full pot to James, live.
+  const e = await makeCircle({
+    name: 'Demo Day Ajo', contrib: 50000, ago: 6, status: 'active',
+    members: [['ada@circle.com', 'creator', 6], ['bayo@circle.com', 'member', 5], ['james@circle.com', 'member', 4]],
+  });
+  const [e1] = await makeCycles(e.id, ['james@circle.com', 'ada@circle.com', 'bayo@circle.com'], 1050000, 0, 2);
+  for (let i = 0; i < 10; i++) await fundTx(e.id, e1, 'ada@circle.com', 50000, 4);
+  for (let i = 0; i < 10; i++) await fundTx(e.id, e1, 'bayo@circle.com', 50000, 3);
+
+  console.log('seeded v3. James: Demo Day Ajo needs exactly one 50k tap to pay out 1.05M.');
 }
 
 main()

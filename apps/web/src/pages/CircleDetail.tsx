@@ -3,20 +3,13 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { API_URL, api, getToken, type CircleDetail, type Cycle, type LedgerPage, type WalletOverview } from '../api';
-
-interface FeedItem {
-  id: string;
-  text: string;
-  at: Date;
-}
+import { countdownText, statusLabel } from '../format';
 
 export function CircleDetailPage() {
   const { id = '' } = useParams();
   const qc = useQueryClient();
-  const [feed, setFeed] = useState<FeedItem[]>([]);
   const [amount, setAmount] = useState('1000');
   const [inviteEmail, setInviteEmail] = useState('');
-  const [tab, setTab] = useState<'live' | 'history'>('live');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const detail = useQuery({
@@ -27,44 +20,34 @@ export function CircleDetailPage() {
     queryKey: ['ledger', id],
     queryFn: () => api.get<LedgerPage>(`/circles/${id}/ledger?limit=20`),
   });
+  const cycles = useQuery({
+    queryKey: ['cycles', id],
+    queryFn: () => api.get<Cycle[]>(`/circles/${id}/cycles`),
+    enabled: !!detail.data?.contributionAmount,
+  });
   const wallet = useQuery({
     queryKey: ['wallet'],
     queryFn: () => api.get<WalletOverview>('/wallet'),
   });
 
-  const pushFeed = (text: string) =>
-    setFeed((f) => [{ id: `${Date.now()}-${Math.random()}`, text, at: new Date() }, ...f].slice(0, 30));
-
-  // Live room: re-join when the circle changes.
+  // Live room keeps every number on screen fresh. Updates land directly in
+  // balances, pots and schedules; there is deliberately no feed UI.
   useEffect(() => {
     const token = getToken();
     if (!token || !id) return;
     const socket: Socket = io(API_URL, { transports: ['websocket'] });
-    socket.on('connect', () => socket.emit('join', { circleId: id, token }));
-    socket.on('contribution.created', (p: { userId: string; amount: string }) => {
-      pushFeed(`New contribution of ${p.amount}`);
+    const refresh = () => {
       qc.invalidateQueries({ queryKey: ['circle', id] });
       qc.invalidateQueries({ queryKey: ['ledger', id] });
-    });
-    socket.on('member.joined', (p: { userId: string; status: string }) => {
-      pushFeed(`A member joined (${p.status.replace('_', ' ')})`);
-      qc.invalidateQueries({ queryKey: ['circle', id] });
-    });
-    socket.on('circle.status_changed', (p: { from: string; to: string }) => {
-      pushFeed(`Circle is now ${p.to.replace('_', ' ')}`);
-      qc.invalidateQueries({ queryKey: ['circle', id] });
-    });
-    socket.on('payout.completed', (p: { cycleNumber: number; amount: string }) => {
-      pushFeed(`Cycle ${p.cycleNumber} paid out: ${Number(p.amount).toLocaleString()}`);
-      qc.invalidateQueries({ queryKey: ['circle', id] });
       qc.invalidateQueries({ queryKey: ['cycles', id] });
       qc.invalidateQueries({ queryKey: ['wallet'] });
-    });
-    socket.on('cycle.advanced', (p: { cycleNumber: number }) => {
-      pushFeed(`Cycle ${p.cycleNumber} is now collecting`);
-      qc.invalidateQueries({ queryKey: ['circle', id] });
-      qc.invalidateQueries({ queryKey: ['cycles', id] });
-    });
+    };
+    socket.on('connect', () => socket.emit('join', { circleId: id, token }));
+    socket.on('contribution.created', refresh);
+    socket.on('member.joined', refresh);
+    socket.on('circle.status_changed', refresh);
+    socket.on('payout.completed', refresh);
+    socket.on('cycle.advanced', refresh);
     return () => {
       socket.disconnect();
     };
@@ -107,12 +90,6 @@ export function CircleDetailPage() {
     onError: (e: Error) => setMsg({ ok: false, text: e.message }),
   });
 
-  const cycles = useQuery({
-    queryKey: ['cycles', id],
-    queryFn: () => api.get<Cycle[]>(`/circles/${id}/cycles`),
-    enabled: !!detail.data?.contributionAmount,
-  });
-
   const d = detail.data;
   if (detail.isLoading) return <p className="muted">Loading circle…</p>;
   if (detail.error || !d) return <div className="error">{(detail.error as Error)?.message ?? 'Not found'}</div>;
@@ -121,7 +98,7 @@ export function CircleDetailPage() {
     <>
       <div className="card hero">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className={`pill ${d.status}`}>{d.status.replace('_', ' ')}</span>
+          <span className={`pill ${d.status}`}>{statusLabel(d.status)}</span>
           <span className="muted" style={{ fontSize: 13 }}>Your share: {Number(d.myBalance).toLocaleString()} {d.currency}</span>
         </div>
         <h1>{d.name}</h1>
@@ -133,6 +110,13 @@ export function CircleDetailPage() {
       </div>
 
       {msg && <div className={msg.ok ? 'card' : 'error'}>{msg.text}</div>}
+
+      {(d.status === 'completed' || d.status === 'goal_reached') && (
+        <div className="card">
+          <h3 className="serif" style={{ fontSize: 22, margin: '0 0 6px' }}>Rotation complete</h3>
+          <p className="muted" style={{ margin: 0 }}>Every cycle paid out. This circle is done collecting.</p>
+        </div>
+      )}
 
       {d.myMembership.status === 'invited' && (
         <div className="card">
@@ -159,6 +143,7 @@ export function CircleDetailPage() {
               </div>
               <span className="muted">
                 {Number(d.currentCycle.collected).toLocaleString()} of {Number(d.currentCycle.targetPot).toLocaleString()} {d.currency} pot
+                {countdownText(d.currentCycle.endsAt) ? ` · ${countdownText(d.currentCycle.endsAt)}` : ''}
               </span>
             </div>
           )}
@@ -168,20 +153,28 @@ export function CircleDetailPage() {
               <h3 className="serif" style={{ fontSize: 22, margin: 0 }}>Contribute</h3>
               <span className="muted" style={{ fontSize: 13 }}>Wallet ₦{Number(wallet.data?.balance ?? 0).toLocaleString()}</span>
             </div>
+            {d.contributionAmount ? (
+              <p style={{ margin: '10px 0 0', fontSize: 20, fontWeight: 700 }}>
+                ₦{Number(d.contributionAmount).toLocaleString()}{' '}
+                <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>fixed step, one tap</span>
+              </p>
+            ) : null}
             <form
               className="inline"
               onSubmit={(e) => {
                 e.preventDefault();
-                contribute.mutate(Number(amount));
+                contribute.mutate(d.contributionAmount ?? Number(amount));
               }}
             >
-              <div>
-                <label>Amount ({d.currency})</label>
-                <input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} required />
-              </div>
+              {!d.contributionAmount && (
+                <div>
+                  <label>Amount ({d.currency})</label>
+                  <input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} required />
+                </div>
+              )}
               <div style={{ flex: '0 0 auto' }}>
                 <button type="submit" disabled={contribute.isPending || d.myMembership.status !== 'active'}>
-                  {contribute.isPending ? 'Sending…' : 'Contribute'}
+                  {contribute.isPending ? 'Sending…' : d.contributionAmount ? `Contribute ₦${Number(d.contributionAmount).toLocaleString()}` : 'Contribute'}
                 </button>
               </div>
             </form>
@@ -189,34 +182,16 @@ export function CircleDetailPage() {
           </div>
 
           <div className="card">
-            <div className="tabs">
-              <button className={tab === 'live' ? 'on' : ''} onClick={() => setTab('live')}>
-                <span className="live-dot" />Live
-              </button>
-              <button className={tab === 'history' ? 'on' : ''} onClick={() => setTab('history')}>History</button>
-            </div>
-            {tab === 'live' ? (
-              <>
-                {feed.length === 0 && <p className="muted">Live. New contributions and member updates show up here.</p>}
-                <ul className="feed">
-                  {feed.map((f) => (
-                    <li key={f.id}>{f.text} <span className="muted">· {f.at.toLocaleTimeString()}</span></li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <>
-                <ul className="feed">
-                  {(ledger.data?.data ?? []).map((e) => (
-                    <li key={e.id}>
-                      {e.user.name} · {e.type} · <strong>{Number(e.amount).toLocaleString()}</strong>
-                      <span className="muted"> · {new Date(e.createdAt).toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="muted" style={{ fontSize: 12 }}>{ledger.data?.total ?? 0} entries total. Entries are permanent; fixes show up as new entries.</p>
-              </>
-            )}
+            <h3>History</h3>
+            <ul className="feed">
+              {(ledger.data?.data ?? []).map((e) => (
+                <li key={e.id}>
+                  {e.user.name} · {e.type} · <strong>{Number(e.amount).toLocaleString()}</strong>
+                  <span className="muted"> · {new Date(e.createdAt).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="muted" style={{ fontSize: 12 }}>{ledger.data?.total ?? 0} entries total. Entries are permanent; fixes show up as new entries.</p>
           </div>
         </div>
 
@@ -249,7 +224,7 @@ export function CircleDetailPage() {
                   ) : (
                     <span className="avatar-fallback">{m.user.name.charAt(0).toUpperCase()}</span>
                   )}
-                  <span>{m.user.name} <span className="muted">· {m.role} · {m.status.replace('_', ' ')}</span></span>
+                  <span>{m.user.name} <span className="muted">· {m.role} · {statusLabel(m.status)}</span></span>
                 </span>
                 <span>{Number(m.balance).toLocaleString()}</span>
               </div>

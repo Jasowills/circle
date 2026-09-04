@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import * as SecureStore from 'expo-secure-store';
+import { api } from './src/api';
 import { AuthProvider, useAuth } from './src/auth';
 import { ThemeProvider, useTheme } from './src/theme';
 import { Logo } from './src/Logo';
 import { LoginScreen } from './src/screens/Login';
 import { SetupScreen } from './src/screens/Setup';
 import { HomeScreen } from './src/screens/Home';
+import { NotificationsScreen, SEEN_KEY, type Notice } from './src/screens/Notifications';
 import { WalletScreen } from './src/screens/Wallet';
 import { CreateScreen } from './src/screens/Create';
 import { PeopleScreen } from './src/screens/People';
@@ -20,7 +23,7 @@ import { CircleDetailScreen } from './src/screens/CircleDetail';
 const qc = new QueryClient();
 
 type Tab = 'home' | 'circles' | 'wallet' | 'people' | 'settings';
-type Push = { name: 'detail'; id: string } | { name: 'create' } | { name: 'profile'; id: string };
+type Push = { name: 'detail'; id: string } | { name: 'create' } | { name: 'profile'; id: string } | { name: 'notifications' };
 
 const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline' },
@@ -35,6 +38,15 @@ function Root() {
   const { s, mode, toggle, palette } = useTheme();
   const [tab, setTab] = useState<Tab>('home');
   const [stack, setStack] = useState<Push[]>([]);
+  const [seenAt, setSeenAt] = useState<string | null>(null);
+
+  const notices = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.get<Notice[]>('/notifications'),
+  });
+  useEffect(() => {
+    SecureStore.getItemAsync(SEEN_KEY).then(setSeenAt).catch(() => setSeenAt(null));
+  }, [stack.length]);
 
   if (!ready) return <View style={s.screen}><Text style={s.muted}>Loading…</Text></View>;
   if (!user) return <LoginScreen />;
@@ -45,6 +57,7 @@ function Root() {
     setTab(t);
     setStack([]);
   };
+  const unread = (notices.data ?? []).filter((n) => !seenAt || n.at > seenAt).length;
 
   return (
     <View style={{ flex: 1, backgroundColor: palette.bg }}>
@@ -60,6 +73,16 @@ function Root() {
           </View>
         </TouchableOpacity>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <TouchableOpacity onPress={() => setStack([...stack, { name: 'notifications' }])} accessibilityRole="button" accessibilityLabel="Notifications" hitSlop={8}>
+            <View>
+              <Ionicons name="notifications-outline" size={22} color={palette.text} />
+              {unread > 0 && (
+                <View style={{ position: 'absolute', top: -6, right: -8, backgroundColor: palette.money, borderRadius: 9, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                  <Text style={{ color: '#06281a', fontSize: 11, fontWeight: '800' }}>{unread > 9 ? '9+' : unread}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
           <TouchableOpacity onPress={toggle} accessibilityRole="button" accessibilityLabel="Toggle light and dark mode" hitSlop={8}>
             <Ionicons name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'} size={22} color={palette.text} />
           </TouchableOpacity>
@@ -79,6 +102,8 @@ function Root() {
           />
         ) : top?.name === 'profile' ? (
           <ProfileScreen userId={top.id} onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} />
+        ) : top?.name === 'notifications' ? (
+          <NotificationsScreen onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} />
         ) : tab === 'home' ? (
           <HomeScreen onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} onOpenPeople={() => goTab('people')} />
         ) : tab === 'circles' ? (

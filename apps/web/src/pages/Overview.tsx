@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, type CircleSummary } from '../api';
+import { statusLabel } from '../format';
 import { useAuth } from '../auth';
 
 function greeting(name: string): string {
@@ -53,7 +54,7 @@ export function Overview() {
             {list.map((c) => (
               <tr key={c.id} onClick={() => nav(`/circles/${c.id}`)}>
                 <td><strong>{c.name}</strong><div className="muted" style={{ fontSize: 12 }}>{c.activeMemberCount} active members</div></td>
-                <td><span className={`pill ${c.status}`}>{c.status.replace('_', ' ')}</span></td>
+                <td><span className={`pill ${c.status}`}>{statusLabel(c.status)}</span></td>
                 <td className="bar-cell">
                   <div className="progress thin"><div style={{ width: `${Math.round(c.progress * 100)}%` }} /></div>
                   <span className="muted" style={{ fontSize: 12 }}>{Math.round(c.progress * 100)}%</span>

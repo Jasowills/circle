@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type CircleSummary } from '../api';
+import { statusLabel } from '../format';
 
 export function CirclesList() {
   const qc = useQueryClient();
@@ -89,7 +90,7 @@ export function CirclesList() {
                       <div style={{ width: `${Math.round(c.progress * 100)}%` }} />
                     </div>
                   </td>
-                  <td><span className={`pill ${c.status}`}>{c.status.replace('_', ' ')}</span></td>
+                  <td><span className={`pill ${c.status}`}>{statusLabel(c.status)}</span></td>
                   <td className="num">{c.activeMemberCount}</td>
                   <td className="num">₦{Number(c.balance).toLocaleString()}<div className="muted" style={{ fontSize: 12 }}>of ₦{Number(c.goalAmount).toLocaleString()}</div></td>
                   <td>

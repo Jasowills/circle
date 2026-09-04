@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type PersonProfile } from '../api';
 import { useTheme } from '../theme';
+import { statusLabel } from '../format';
 import { Avatar } from '../Avatar';
 
 export function ProfileScreen({ userId, onOpenCircle }: { userId: string; onOpenCircle: (id: string) => void }) {
@@ -52,7 +53,7 @@ export function ProfileScreen({ userId, onOpenCircle }: { userId: string; onOpen
         {sharedCircles.length === 0 && <Text style={s.muted}>None yet. Invite {isSelf ? 'yourself' : user.name.split(' ')[0]} to one of yours below.</Text>}
         {sharedCircles.map((c) => (
           <TouchableOpacity key={c.id} style={[s.row, { paddingVertical: 8 }]} onPress={() => onOpenCircle(c.id)}>
-            <Text style={s.text}>{c.name} <Text style={s.muted}>· {c.status.replace('_', ' ')}</Text></Text>
+            <Text style={s.text}>{c.name} <Text style={s.muted}>· {statusLabel(c.status)}</Text></Text>
             <Ionicons name="chevron-forward" size={16} color={palette.faint} />
           </TouchableOpacity>
         ))}

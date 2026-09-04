@@ -36,7 +36,7 @@ export type Palette = typeof dark;
 function makeStyles(t: Palette) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg, padding: 16 },
-    card: { backgroundColor: t.panel, borderColor: t.border, borderWidth: 1, borderRadius: 4, padding: 16, marginBottom: 12 },
+    card: { backgroundColor: t.panel, borderWidth: 0, borderRadius: 4, padding: 16, marginBottom: 12 },
     h1: { color: t.text, fontSize: 28, fontWeight: '800' },
     h2: { color: t.text, fontSize: 20, fontWeight: '700', marginBottom: 4 },
     h3: { color: t.text, fontSize: 16, fontWeight: '700', marginBottom: 8 },

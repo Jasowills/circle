@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type CircleSummary } from '../api';
 import { useTheme } from '../theme';
 import { FadeIn } from '../anim';
+import { statusLabel } from '../format';
 import { Logo } from '../Logo';
 
 export function CirclesScreen({ onOpen, onCreate }: { onOpen: (id: string) => void; onCreate: () => void }) {
@@ -88,7 +89,7 @@ export function CirclesScreen({ onOpen, onCreate }: { onOpen: (id: string) => vo
             <TouchableOpacity style={s.card} onPress={() => (tab === 'mine' ? onOpen(c.id) : undefined)}>
               <View style={s.row}>
                 <Text style={s.h3}>{c.name}</Text>
-                <Text style={[s.pill, solid && s.pillSolid, money && s.pillMoney]}>{c.status.replace('_', ' ')}</Text>
+                <Text style={[s.pill, solid && s.pillSolid, money && s.pillMoney]}>{statusLabel(c.status)}</Text>
               </View>
               <View style={s.bar}>
                 <View style={[s.barFill, { width: `${Math.round(c.progress * 100)}%` }]} />

@@ -61,12 +61,12 @@ export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: 
         <View style={[s.card, { flex: 1, marginBottom: 0, alignItems: 'center' }]}>
           <Ionicons name="people-outline" size={22} color={palette.text} />
           <Text style={[s.h2, { marginTop: 6, marginBottom: 0 }]}>{list.reduce((n, c) => n + c.activeMemberCount, 0)}</Text>
-          <Text style={s.muted}>members</Text>
+          <Text style={s.muted}>Members</Text>
         </View>
         <View style={[s.card, { flex: 1, marginBottom: 0, alignItems: 'center' }]}>
           <Ionicons name="trophy-outline" size={22} color={palette.money} />
           <Text style={[s.h2, { marginTop: 6, marginBottom: 0, color: palette.money }]}>{list.filter((c) => c.status === 'goal_reached' || c.status === 'completed').length}</Text>
-          <Text style={s.muted}>goals hit</Text>
+          <Text style={s.muted}>Goals Hit</Text>
         </View>
       </View>
       </FadeIn>

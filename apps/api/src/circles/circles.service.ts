@@ -233,6 +233,13 @@ export class CirclesService {
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException('Amount must be a positive number');
     }
+    // Rotation circles take fixed steps (one or more days at once).
+    if (circle.contributionAmount !== null) {
+      const step = Number(circle.contributionAmount);
+      if (amount % step !== 0) {
+        throw new BadRequestException(`This circle takes ₦${step.toLocaleString()} at a time`);
+      }
+    }
     const key = idempotencyKey.trim();
 
     // Sequential replay first: the common retry path never touches the wallet.
