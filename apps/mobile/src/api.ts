@@ -72,7 +72,9 @@ export const api = {
     });
     if (!res.ok) {
       const b = await res.json().catch(() => ({}));
-      throw new Error((b as { message?: string }).message ?? `Request failed (${res.status})`);
+      const msg = (b as { message?: string }).message ?? `Request failed (${res.status})`;
+      console.log(`[Circle] POST ${p} -> ${res.status}: ${msg}`);
+      throw new Error(msg);
     }
     return (await res.json()) as T;
   },

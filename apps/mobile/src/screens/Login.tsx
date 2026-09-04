@@ -3,7 +3,7 @@ import { Dimensions, Image, ScrollView, Text, TextInput, TouchableOpacity, View 
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import { api } from '../api';
+import { API_URL, api } from '../api';
 import { useAuth } from '../auth';
 import { useTheme } from '../theme';
 import { Logo } from '../Logo';
@@ -71,14 +71,18 @@ export function LoginScreen() {
 
   const devLogin = async () => {
     setErr(null);
+    console.log(`[Circle] dev sign-in attempt email=${email} api=${API_URL}`);
     try {
       const t = await api.postPublic<{ accessToken: string; refreshToken: string; isNew: boolean }>('/auth/dev-login', {
         email,
         name: name || undefined,
       });
+      console.log(`[Circle] dev sign-in ok isNew=${t.isNew}`);
       await signIn(t.accessToken, t.refreshToken, t.isNew);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Login failed');
+      const msg = e instanceof Error ? e.message : 'Login failed';
+      console.log(`[Circle] dev sign-in FAILED: ${msg}`);
+      setErr(msg);
     }
   };
 
@@ -136,10 +140,10 @@ export function LoginScreen() {
             <Text style={[s.h2, { marginBottom: 0 }]}>Circle</Text>
           </View>
           <View style={[s.row, { gap: 12, marginBottom: 4 }]}>
-            <TouchableOpacity style={[mode === 'join' ? s.btn : s.btnGhost, { flex: 1, marginTop: 0 }]} onPress={() => setMode('join')}>
+            <TouchableOpacity style={[mode === 'join' ? s.btn : s.btnGhost, { flex: 1, marginTop: 0, padding: 13 }]} onPress={() => setMode('join')}>
               <Text style={mode === 'join' ? s.btnText : s.btnGhostText}>Join</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[mode === 'signin' ? s.btn : s.btnGhost, { flex: 1, marginTop: 0 }]} onPress={() => setMode('signin')}>
+            <TouchableOpacity style={[mode === 'signin' ? s.btn : s.btnGhost, { flex: 1, marginTop: 0, padding: 13 }]} onPress={() => setMode('signin')}>
               <Text style={mode === 'signin' ? s.btnText : s.btnGhostText}>Sign in</Text>
             </TouchableOpacity>
           </View>
@@ -175,7 +179,7 @@ export function LoginScreen() {
               <Text style={s.label}>Name (optional)</Text>
               <TextInput style={s.input} value={name} onChangeText={setName} placeholder="Ada" placeholderTextColor={palette.placeholder} />
               <TouchableOpacity style={s.btn} onPress={devLogin}>
-                <Text style={s.btnText}>Dev sign-in</Text>
+                <Text style={s.btnText}>{mode === 'join' ? 'Create account' : 'Sign in'}</Text>
               </TouchableOpacity>
             </View>
           )}
