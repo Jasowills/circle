@@ -17,22 +17,39 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     credentials: 'include',
   });
   if (res.status === 401 && retry && getToken()) {
-    // Try a silent refresh once (httpOnly cookie), then replay the request.
-    const r = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
-    if (r.ok) {
-      const { accessToken } = (await r.json()) as { accessToken: string };
-      setToken(accessToken);
+    // One shared refresh: parallel 401s (every page fires several) must not
+    // stampede rotation, or the losers read 401 and nuke a live session.
+    try {
+      await silentRefresh();
       return request<T>(path, init, false);
+    } catch {
+      setToken(null);
+      window.location.href = '/login';
+      throw new Error('Session expired');
     }
-    setToken(null);
-    window.location.href = '/login';
-    throw new Error('Session expired');
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { message?: string }).message ?? `Request failed (${res.status})`);
   }
   return (await res.json()) as T;
+}
+
+let inflight: Promise<string> | null = null;
+
+function silentRefresh(): Promise<string> {
+  if (!inflight) {
+    inflight = (async () => {
+      const r = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
+      if (!r.ok) throw new Error('refresh failed');
+      const { accessToken } = (await r.json()) as { accessToken: string };
+      setToken(accessToken);
+      return accessToken;
+    })().finally(() => {
+      inflight = null;
+    });
+  }
+  return inflight;
 }
 
 export const api = {

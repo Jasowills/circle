@@ -35,27 +35,42 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     },
   });
   if (res.status === 401 && retry && token) {
-    const refreshToken = await getRefreshToken();
-    if (refreshToken) {
-      const r = await timedFetch(`${API_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (r.ok) {
-        const pair = (await r.json()) as { accessToken: string; refreshToken: string };
-        await saveTokens(pair.accessToken, pair.refreshToken);
-        return request<T>(path, init, false);
-      }
+    try {
+      await silentRefresh();
+      return request<T>(path, init, false);
+    } catch {
+      await clearTokens();
+      throw new Error('Session expired. Please sign in again');
     }
-    await clearTokens();
-    throw new Error('Session expired. Please sign in again');
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { message?: string }).message ?? `Request failed (${res.status})`);
   }
   return (await res.json()) as T;
+}
+
+let inflight: Promise<void> | null = null;
+
+/** One shared refresh: parallel 401s must not stampede rotation. */
+async function silentRefresh(): Promise<void> {
+  if (!inflight) {
+    inflight = (async () => {
+      const refreshToken = await getRefreshToken();
+      if (!refreshToken) throw new Error('no refresh token');
+      const r = await timedFetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!r.ok) throw new Error('refresh failed');
+      const pair = (await r.json()) as { accessToken: string; refreshToken: string };
+      await saveTokens(pair.accessToken, pair.refreshToken);
+    })().finally(() => {
+      inflight = null;
+    });
+  }
+  return inflight;
 }
 
 /** fetch that gives up after TIMEOUT_MS instead of hanging forever. */

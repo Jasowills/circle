@@ -255,6 +255,20 @@ export class CirclesService {
       where: { circleId, status: 'collecting' },
     });
 
+    // Scheduled circles pace contributions: at most N per week, evenly spaced.
+    if (currentCycle && circle.contributionsPerWeek) {
+      const gap = (circle.cycleLengthDays * 86400000) / circle.contributionsPerWeek;
+      const last = await this.prisma.ledgerEntry.findFirst({
+        where: { circleId, cycleId: currentCycle.id, userId },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (last && Date.now() - last.createdAt.getTime() < gap) {
+        throw new BadRequestException(
+          `Next contribution opens in ${this.countdown(last.createdAt.getTime() + gap)}.`,
+        );
+      }
+    }
+
     // One Postgres transaction: wallet debit + ledger credit, or neither.
     // A race on the key rolls everything back and falls through to replay.
     let entry;
@@ -299,8 +313,65 @@ export class CirclesService {
     return { entry: this.presentLedger(entry), replayed: false, circle: await this.summarize(circleId) };
   }
 
-  /** Pay out a fully-collected cycle. Safe to call repeatedly: only the
-   *  collecting→payout_completed flip wins, everyone else no-ops. */
+  /** When this member may next contribute (ISO), or null when unrestricted. */
+  async nextContributionAt(circleId: string, userId: string): Promise<string | null> {
+    const circle = await this.requireCircle(circleId);
+    if (circle.contributionAmount === null || !circle.contributionsPerWeek) return null;
+    const currentCycle = await this.prisma.circleCycle.findFirst({
+      where: { circleId, status: 'collecting' },
+    });
+    if (!currentCycle) return null;
+    const gap = (circle.cycleLengthDays * 86400000) / circle.contributionsPerWeek;
+    const last = await this.prisma.ledgerEntry.findFirst({
+      where: { circleId, cycleId: currentCycle.id, userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!last || Date.now() - last.createdAt.getTime() >= gap) return null;
+    return new Date(last.createdAt.getTime() + gap).toISOString();
+  }
+
+  /** Toggle scheduled auto-contribute for my own membership. */
+  async setAuto(circleId: string, userId: string, enabled: boolean) {
+    const m = await this.requireActiveMember(circleId, userId);
+    const circle = await this.requireCircle(circleId);
+    if (enabled && circle.contributionAmount === null) {
+      throw new BadRequestException('Auto-contribute needs a fixed-step circle');
+    }
+    await this.prisma.circleMembership.update({ where: { id: m.id }, data: { autoContribute: enabled } });
+    return { autoContribute: enabled };
+  }
+
+  /** Background runner: contribute the fixed step for everyone due. Skips the
+   *  broke quietly (insufficient balance) — the countdown tells them instead. */
+  async runAutoContributions(): Promise<number> {
+    const due = await this.prisma.circleMembership.findMany({
+      where: { status: 'active', autoContribute: true },
+      include: { circle: true },
+    });
+    let paid = 0;
+    for (const m of due) {
+      if (m.circle.status !== 'active' || m.circle.contributionAmount === null) continue;
+      const next = await this.nextContributionAt(m.circleId, m.userId);
+      if (next !== null) continue;
+      try {
+        const { randomUUID } = await import('crypto');
+        await this.contribute(m.circleId, m.userId, Number(m.circle.contributionAmount), randomUUID());
+        paid++;
+      } catch {
+        continue; // usually insufficient balance; countdown + wallet say so
+      }
+    }
+    return paid;
+  }
+
+  private countdown(at: number): string {
+    const ms = Math.max(0, at - Date.now());
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    if (d > 0) return `${d}d ${h}h`;
+    const m = Math.max(1, Math.floor((ms % 3600000) / 60000));
+    return `${h}h ${m}m`;
+  }
   async maybePayout(circleId: string, cycleId: string): Promise<void> {
     const cycle = await this.prisma.circleCycle.findUnique({ where: { id: cycleId } });
     if (!cycle || cycle.status !== 'collecting') return;
