@@ -58,6 +58,12 @@ export class CirclesController {
     return this.circles.accept(id, req.user.id);
   }
 
+  @Post(':id/join')
+  @HttpCode(200)
+  join(@Req() req: { user: { id: string } }, @Param('id') id: string) {
+    return this.circles.join(id, req.user.id);
+  }
+
   @Post(':id/contribute')
   @HttpCode(200)
   contribute(

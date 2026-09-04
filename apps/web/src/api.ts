@@ -43,6 +43,34 @@ export const api = {
     request<T>(p, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
 };
 
+export interface WalletTx {
+  id: string;
+  amount: string;
+  type: string;
+  relatedCircleId: string | null;
+  relatedCycleId: string | null;
+  createdAt: string;
+}
+
+export interface WalletOverview {
+  balance: number;
+  data: WalletTx[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+export interface Cycle {
+  id: string;
+  cycleNumber: number;
+  recipient: { id: string; name: string };
+  startsAt: string;
+  endsAt: string;
+  targetPot: number;
+  collected: number;
+  status: string;
+}
+
 export interface CircleSummary {
   id: string;
   name: string;
@@ -58,6 +86,17 @@ export interface CircleSummary {
 export interface CircleDetail extends CircleSummary {
   myBalance: number;
   myMembership: { role: string; status: string };
+  contributionAmount?: number | null;
+  targetMembers?: number | null;
+  currentCycle?: {
+    id: string;
+    cycleNumber: number;
+    totalCycles: number;
+    recipient: { id: string; name: string };
+    targetPot: number;
+    collected: number;
+    endsAt: string;
+  } | null;
   members: {
     userId: string;
     user: { id: string; name: string; email: string; avatarUrl: string | null };

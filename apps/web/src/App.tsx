@@ -5,6 +5,7 @@ import { Logo } from './Logo';
 import { Login, AuthCallback } from './pages/Login';
 import { Setup } from './pages/Setup';
 import { Overview } from './pages/Overview';
+import { WalletPage } from './pages/Wallet';
 import { CirclesList } from './pages/CirclesList';
 import { CircleDetailPage } from './pages/CircleDetail';
 
@@ -26,6 +27,9 @@ function Shell() {
         <NavLink to="/circles" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
           Circles
         </NavLink>
+        <NavLink to="/wallet" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
+          Wallet
+        </NavLink>
         <div className="side-foot">
           <span className="muted" style={{ fontSize: 13 }}>{user.name}</span>
           <div className="row">
@@ -42,6 +46,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/circles" element={<CirclesList />} />
+          <Route path="/wallet" element={<WalletPage />} />
           <Route path="/setup" element={<Setup />} />
           <Route path="/circles/:id" element={<CircleDetailPage />} />
         </Routes>

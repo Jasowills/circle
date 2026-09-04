@@ -204,6 +204,26 @@ export class CirclesService {
     return this.detail(circleId, userId);
   }
 
+  /** Open enrollment for public (forming) circles found via discover. */
+  async join(circleId: string, userId: string) {
+    const circle = await this.requireCircle(circleId);
+    const existing = await this.prisma.circleMembership.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (existing) return this.detail(circleId, userId);
+    if (circle.status !== 'forming') throw new BadRequestException('This circle is no longer open to join');
+    if (circle.targetMembers !== null) {
+      const active = await this.prisma.circleMembership.count({ where: { circleId, status: 'active' } });
+      if (active >= circle.targetMembers) throw new BadRequestException('This circle is full');
+    }
+    await this.prisma.circleMembership.create({
+      data: { circleId, userId, role: 'member', status: 'active', joinedAt: new Date() },
+    });
+    this.events.memberJoined(circleId, { userId, status: 'active' });
+    await this.applyTransitions(circleId, 'public_join');
+    return this.detail(circleId, userId);
+  }
+
   async contribute(circleId: string, userId: string, amount: number, idempotencyKey: string) {
     const circle = await this.requireCircle(circleId);
     if (circle.status === 'closed' || circle.status === 'completed') {

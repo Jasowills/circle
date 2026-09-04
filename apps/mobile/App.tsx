@@ -9,6 +9,7 @@ import { Logo } from './src/Logo';
 import { LoginScreen } from './src/screens/Login';
 import { SetupScreen } from './src/screens/Setup';
 import { HomeScreen } from './src/screens/Home';
+import { WalletScreen } from './src/screens/Wallet';
 import { CreateScreen } from './src/screens/Create';
 import { PeopleScreen } from './src/screens/People';
 import { ProfileScreen } from './src/screens/Profile';
@@ -18,12 +19,13 @@ import { CircleDetailScreen } from './src/screens/CircleDetail';
 
 const qc = new QueryClient();
 
-type Tab = 'home' | 'circles' | 'people' | 'settings';
+type Tab = 'home' | 'circles' | 'wallet' | 'people' | 'settings';
 type Push = { name: 'detail'; id: string } | { name: 'create' } | { name: 'profile'; id: string };
 
 const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'home', label: 'Home', icon: 'home-outline' },
   { key: 'circles', label: 'Circles', icon: 'ellipse-outline' },
+  { key: 'wallet', label: 'Wallet', icon: 'wallet-outline' },
   { key: 'people', label: 'People', icon: 'search-outline' },
   { key: 'settings', label: 'Settings', icon: 'settings-outline' },
 ];
@@ -81,6 +83,8 @@ function Root() {
           <HomeScreen onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} onOpenPeople={() => goTab('people')} />
         ) : tab === 'circles' ? (
           <CirclesScreen onOpen={(id) => setStack([...stack, { name: 'detail', id }])} onCreate={() => setStack([...stack, { name: 'create' }])} />
+        ) : tab === 'wallet' ? (
+          <WalletScreen />
         ) : tab === 'people' ? (
           <PeopleScreen onOpenProfile={(id) => setStack([...stack, { name: 'profile', id }])} />
         ) : (

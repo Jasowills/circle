@@ -116,6 +116,44 @@ export interface LedgerEntry {
   createdAt: string;
 }
 
+export interface WalletTx {
+  id: string;
+  amount: string;
+  type: string;
+  relatedCircleId: string | null;
+  relatedCycleId: string | null;
+  createdAt: string;
+}
+
+export interface WalletOverview {
+  balance: number;
+  data: WalletTx[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+export interface Cycle {
+  id: string;
+  cycleNumber: number;
+  recipient: { id: string; name: string };
+  startsAt: string;
+  endsAt: string;
+  targetPot: number;
+  collected: number;
+  status: string;
+}
+
+export interface CurrentCycle {
+  id: string;
+  cycleNumber: number;
+  totalCycles: number;
+  recipient: { id: string; name: string };
+  targetPot: number;
+  collected: number;
+  endsAt: string;
+}
+
 export interface CircleSummary {
   id: string;
   name: string;
@@ -126,6 +164,9 @@ export interface CircleSummary {
   progress: number;
   memberCount: number;
   activeMemberCount: number;
+  contributionAmount?: number | null;
+  targetMembers?: number | null;
+  currentCycle?: CurrentCycle | null;
 }
 
 export interface CircleDetail extends CircleSummary {

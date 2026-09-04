@@ -1,14 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { useQuery } from '@tanstack/react-query';
 import { api, type Person } from '../api';
 import { useTheme } from '../theme';
 import { Avatar } from '../Avatar';
 
+const RECENT_KEY = 'circle.recentSearches';
+
+async function loadRecents(): Promise<Person[]> {
+  try {
+    const raw = await SecureStore.getItemAsync(RECENT_KEY);
+    return raw ? (JSON.parse(raw) as Person[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function PeopleScreen({ onOpenProfile }: { onOpenProfile: (id: string) => void }) {
   const { s, palette } = useTheme();
   const [q, setQ] = useState('');
+  const [recents, setRecents] = useState<Person[]>([]);
+
+  useEffect(() => {
+    loadRecents().then(setRecents);
+  }, []);
+
+  const open = (p: Person) => {
+    setRecents((prev) => {
+      const next = [p, ...prev.filter((r) => r.id !== p.id)].slice(0, 5);
+      SecureStore.setItemAsync(RECENT_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+    onOpenProfile(p.id);
+  };
 
   const { data, isFetching } = useQuery({
     queryKey: ['people', q],
@@ -46,11 +72,30 @@ export function PeopleScreen({ onOpenProfile }: { onOpenProfile: (id: string) =>
           q.trim().length >= 2 && !isFetching ? (
             <Text style={[s.muted, { marginTop: 16 }]}>Nobody matches "{q}". Try another spelling.</Text>
           ) : q.trim().length < 2 ? (
-            <Text style={[s.muted, { marginTop: 16 }]}>Type at least 2 letters to search the platform.</Text>
+            <View>
+              <Text style={[s.muted, { marginTop: 16 }]}>Type at least 2 letters to search the platform.</Text>
+              {recents.length > 0 && (
+                <>
+                  <Text style={[s.h3, { marginTop: 16 }]}>Recent</Text>
+                  {recents.map((p) => (
+                    <TouchableOpacity key={p.id} style={[s.card, { marginBottom: 8 }]} onPress={() => open(p)}>
+                      <View style={[s.row, { justifyContent: 'flex-start', gap: 12 }]}>
+                        <Ionicons name="time-outline" size={16} color={palette.faint} />
+                        <Avatar name={p.name} avatarUrl={p.avatarUrl} size={30} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.text}>{p.name}</Text>
+                          <Text style={s.muted}>{p.email}</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
+            </View>
           ) : null
         }
         renderItem={({ item: p }) => (
-          <TouchableOpacity style={[s.card, { marginBottom: 8 }]} onPress={() => onOpenProfile(p.id)}>
+          <TouchableOpacity style={[s.card, { marginBottom: 8 }]} onPress={() => open(p)}>
             <View style={[s.row, { justifyContent: 'flex-start', gap: 12 }]}>
               <Avatar name={p.name} avatarUrl={p.avatarUrl} />
               <View style={{ flex: 1 }}>

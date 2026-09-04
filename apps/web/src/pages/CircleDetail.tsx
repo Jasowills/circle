@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
-import { API_URL, api, getToken, type CircleDetail, type LedgerPage } from '../api';
+import { API_URL, api, getToken, type CircleDetail, type Cycle, type LedgerPage, type WalletOverview } from '../api';
 
 interface FeedItem {
   id: string;
@@ -27,6 +27,10 @@ export function CircleDetailPage() {
     queryKey: ['ledger', id],
     queryFn: () => api.get<LedgerPage>(`/circles/${id}/ledger?limit=20`),
   });
+  const wallet = useQuery({
+    queryKey: ['wallet'],
+    queryFn: () => api.get<WalletOverview>('/wallet'),
+  });
 
   const pushFeed = (text: string) =>
     setFeed((f) => [{ id: `${Date.now()}-${Math.random()}`, text, at: new Date() }, ...f].slice(0, 30));
@@ -50,6 +54,17 @@ export function CircleDetailPage() {
       pushFeed(`Circle is now ${p.to.replace('_', ' ')}`);
       qc.invalidateQueries({ queryKey: ['circle', id] });
     });
+    socket.on('payout.completed', (p: { cycleNumber: number; amount: string }) => {
+      pushFeed(`Cycle ${p.cycleNumber} paid out: ${Number(p.amount).toLocaleString()}`);
+      qc.invalidateQueries({ queryKey: ['circle', id] });
+      qc.invalidateQueries({ queryKey: ['cycles', id] });
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    });
+    socket.on('cycle.advanced', (p: { cycleNumber: number }) => {
+      pushFeed(`Cycle ${p.cycleNumber} is now collecting`);
+      qc.invalidateQueries({ queryKey: ['circle', id] });
+      qc.invalidateQueries({ queryKey: ['cycles', id] });
+    });
     return () => {
       socket.disconnect();
     };
@@ -63,6 +78,7 @@ export function CircleDetailPage() {
       setMsg({ ok: true, text: r.replayed ? 'That one already went through. No double charge.' : 'Contribution saved.' });
       qc.invalidateQueries({ queryKey: ['circle', id] });
       qc.invalidateQueries({ queryKey: ['ledger', id] });
+      qc.invalidateQueries({ queryKey: ['wallet'] });
     },
     onError: (e: Error) => setMsg({ ok: false, text: e.message }),
   });
@@ -89,6 +105,12 @@ export function CircleDetailPage() {
     mutationFn: () => api.post(`/circles/${id}/close`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['circle', id] }),
     onError: (e: Error) => setMsg({ ok: false, text: e.message }),
+  });
+
+  const cycles = useQuery({
+    queryKey: ['cycles', id],
+    queryFn: () => api.get<Cycle[]>(`/circles/${id}/cycles`),
+    enabled: !!detail.data?.contributionAmount,
   });
 
   const d = detail.data;
@@ -121,8 +143,31 @@ export function CircleDetailPage() {
 
       <div className="cols">
         <div>
+          {d.currentCycle && (
+            <div className="card">
+              <div className="row" style={{ justifyContent: 'space-between' }}>
+                <h3 className="serif" style={{ fontSize: 22, margin: 0 }}>
+                  Cycle {d.currentCycle.cycleNumber} of {d.currentCycle.totalCycles}
+                </h3>
+                <span className="pill active">collecting</span>
+              </div>
+              <p style={{ margin: '8px 0 0' }}>
+                <strong>{d.currentCycle.recipient.name}</strong> collects this cycle.
+              </p>
+              <div className="progress">
+                <div style={{ width: `${Math.min(100, Math.round((d.currentCycle.collected / d.currentCycle.targetPot) * 100))}%` }} />
+              </div>
+              <span className="muted">
+                {Number(d.currentCycle.collected).toLocaleString()} of {Number(d.currentCycle.targetPot).toLocaleString()} {d.currency} pot
+              </span>
+            </div>
+          )}
+
           <div className="card">
-            <h3 className="serif" style={{ fontSize: 22 }}>Contribute</h3>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <h3 className="serif" style={{ fontSize: 22, margin: 0 }}>Contribute</h3>
+              <span className="muted" style={{ fontSize: 13 }}>Wallet ₦{Number(wallet.data?.balance ?? 0).toLocaleString()}</span>
+            </div>
             <form
               className="inline"
               onSubmit={(e) => {
@@ -176,6 +221,24 @@ export function CircleDetailPage() {
         </div>
 
         <div>
+          {(cycles.data ?? []).length > 0 && (
+            <div className="card">
+              <h3>Rotation schedule</h3>
+              <ul className="feed">
+                {(cycles.data ?? []).map((c) => (
+                  <li key={c.id}>
+                    Cycle {c.cycleNumber} · {c.recipient.name} ·{' '}
+                    <span className="muted">
+                      {c.status === 'payout_completed' ? 'paid out' : c.status === 'collecting'
+                        ? `${Number(c.collected).toLocaleString()} / ${Number(c.targetPot).toLocaleString()}`
+                        : 'upcoming'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="card">
             <h3>Members</h3>
             {d.members.map((m) => (
