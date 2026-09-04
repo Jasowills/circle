@@ -5,8 +5,8 @@ export type ThemeMode = 'dark' | 'light';
 
 const dark = {
   bg: '#0a0a0a',
-  panel: '#141414',
-  panel2: '#1e1e1e',
+  panel: '#0a0a0a',
+  panel2: '#161616',
   text: '#fafafa',
   muted: 'rgba(250,250,250,0.6)',
   faint: 'rgba(250,250,250,0.38)',
@@ -19,8 +19,8 @@ const dark = {
 
 const light = {
   bg: '#faf9f6',
-  panel: '#ffffff',
-  panel2: '#efede7',
+  panel: '#faf9f6',
+  panel2: '#e8e6e0',
   text: '#0a0a0a',
   muted: 'rgba(10,10,10,0.62)',
   faint: 'rgba(10,10,10,0.4)',
@@ -36,14 +36,14 @@ export type Palette = typeof dark;
 function makeStyles(t: Palette) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg, padding: 16 },
-    card: { backgroundColor: t.panel, borderWidth: 0, borderRadius: 4, padding: 16, marginBottom: 12 },
+    card: { backgroundColor: t.panel, borderColor: t.border, borderWidth: 1, borderRadius: 4, padding: 16, marginBottom: 12 },
     h1: { color: t.text, fontSize: 28, fontWeight: '800', fontVariant: ['tabular-nums'] },
     h2: { color: t.text, fontSize: 20, fontWeight: '700', marginBottom: 4, fontVariant: ['tabular-nums'] },
     h3: { color: t.text, fontSize: 16, fontWeight: '700', marginBottom: 8 },
     text: { color: t.text, fontSize: 14, fontVariant: ['tabular-nums'] },
     muted: { color: t.muted, fontSize: 13 },
     faint: { color: t.faint, fontSize: 12 },
-    input: { backgroundColor: t.panel2, borderColor: t.border, borderWidth: 1, color: t.text, borderRadius: 4, padding: 12, fontSize: 15, marginTop: 4 },
+    input: { backgroundColor: 'transparent', borderColor: t.border, borderWidth: 1, color: t.text, borderRadius: 4, padding: 12, fontSize: 15, marginTop: 4 },
     label: { color: t.muted, fontSize: 12, marginTop: 10 },
     btn: { backgroundColor: t.accent, borderRadius: 4, padding: 13, alignItems: 'center', marginTop: 12 },
     btnText: { color: t.accentInk, fontWeight: '700', fontSize: 15 },
