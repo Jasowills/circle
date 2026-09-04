@@ -3,9 +3,13 @@ import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
-import { api, type WalletOverview } from '../api';
+import { api, type WalletOverview, type WalletTx } from '../api';
 import { useTheme } from '../theme';
 import { FadeIn } from '../anim';
+
+function inOut(txns: WalletTx[], sign: 1 | -1): number {
+  return txns.reduce((s, t) => s + (Math.sign(Number(t.amount)) === sign ? Math.abs(Number(t.amount)) : 0), 0);
+}
 
 const QUICK = [50000, 100000, 250000];
 
@@ -86,6 +90,21 @@ export function WalletScreen() {
       </FadeIn>
 
       <FadeIn delay={200}>
+      <View style={s.card}>
+        <View style={[s.row, { marginBottom: 8 }]}>
+          <View style={{ alignItems: 'center', flex: 1 }}>
+            <Text style={[s.h3, { color: palette.money, marginBottom: 0 }]}>+₦{inOut(d?.data ?? [], 1).toLocaleString()}</Text>
+            <Text style={s.muted}>In</Text>
+          </View>
+          <View style={{ alignItems: 'center', flex: 1 }}>
+            <Text style={[s.h3, { marginBottom: 0 }]}>−₦{inOut(d?.data ?? [], -1).toLocaleString()}</Text>
+            <Text style={s.muted}>Out</Text>
+          </View>
+        </View>
+      </View>
+      </FadeIn>
+
+      <FadeIn delay={260}>
       <View style={s.card}>
         <Text style={s.h3}>Transactions</Text>
         {(d?.data ?? []).map((t) => {

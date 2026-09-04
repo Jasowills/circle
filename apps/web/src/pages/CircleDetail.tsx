@@ -215,6 +215,22 @@ export function CircleDetailPage() {
           )}
 
           <div className="card">
+            <h3>Facts</h3>
+            {[
+              ['Daily step', d.contributionAmount ? `₦${Number(d.contributionAmount).toLocaleString()}` : 'Free amount'],
+              ['Cycle length', `${d.cycleLengthDays} days`],
+              ['Seats', d.targetMembers ? `${d.members.filter((m) => m.status === 'active').length} of ${d.targetMembers} filled` : `${d.members.length} members`],
+              ['Started', new Date(d.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })],
+              ['Your role', `${d.myMembership.role} · ${statusLabel(d.myMembership.status)}`],
+            ].map(([k, v]) => (
+              <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }} key={k}>
+                <span className="muted">{k}</span>
+                <span>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="card">
             <h3>Members</h3>
             {d.members.map((m) => (
               <div className="member" key={m.userId}>

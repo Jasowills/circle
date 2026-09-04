@@ -187,6 +187,8 @@ export interface CircleSummary {
 export interface CircleDetail extends CircleSummary {
   myBalance: number;
   myMembership: { role: string; status: string };
+  cycleLengthDays: number;
+  createdAt: string;
   members: {
     userId: string;
     user: { id: string; name: string; email: string; avatarUrl: string | null };

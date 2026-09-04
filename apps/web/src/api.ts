@@ -107,6 +107,8 @@ export interface CircleDetail extends CircleSummary {
   myMembership: { role: string; status: string };
   contributionAmount?: number | null;
   targetMembers?: number | null;
+  cycleLengthDays: number;
+  createdAt: string;
   currentCycle?: {
     id: string;
     cycleNumber: number;

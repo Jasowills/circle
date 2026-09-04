@@ -6,6 +6,7 @@ import { useAuth } from '../auth';
 import { useTheme } from '../theme';
 import { AnimatedMoneyBar, FadeIn } from '../anim';
 import { Greeting } from '../Avatar';
+import type { Notice } from './Notifications';
 
 const HERO = 'https://images.pexels.com/photos/3931607/pexels-photo-3931607.jpeg?auto=compress&cs=tinysrgb&w=1260';
 
@@ -13,7 +14,7 @@ interface ActivityItem extends LedgerEntry {
   circleName: string;
 }
 
-export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: string) => void; onOpenPeople: () => void }) {
+export function HomeScreen({ onOpenCircle, onOpenPeople, onOpenNotifications }: { onOpenCircle: (id: string) => void; onOpenPeople: () => void; onOpenNotifications: () => void }) {
   const { s, palette } = useTheme();
   const { user } = useAuth();
   const { data: circles } = useQuery({
@@ -24,6 +25,14 @@ export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: 
   const list = circles ?? [];
   const saved = list.reduce((sum, c) => sum + Number(c.balance), 0);
   const top = [...list].sort((a, b) => b.progress - a.progress)[0];
+
+  const notices = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.get<Notice[]>('/notifications'),
+  });
+  const attention = (notices.data ?? []).filter((n) =>
+    ['contribute_due', 'invite_pending', 'payout_countdown', 'collect_soon'].includes(n.kind),
+  ).slice(0, 3);
 
   const activity = useQuery({
     queryKey: ['home-activity', list.map((c) => c.id).join(',')],
@@ -70,6 +79,23 @@ export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: 
         </View>
       </View>
       </FadeIn>
+
+      {attention.length > 0 && (
+        <FadeIn delay={120}>
+        <TouchableOpacity style={s.card} onPress={onOpenNotifications}>
+          <View style={s.row}>
+            <Text style={s.h3}>Needs your attention</Text>
+            <Ionicons name="chevron-forward" size={16} color={palette.faint} />
+          </View>
+          {attention.map((n) => (
+            <View key={n.id} style={[s.row, { paddingVertical: 6, justifyContent: 'flex-start', gap: 10 }]}>
+              <Ionicons name="ellipse" size={8} color={palette.money} />
+              <Text style={[s.text, { flex: 1 }]} numberOfLines={1}>{n.title}</Text>
+            </View>
+          ))}
+        </TouchableOpacity>
+        </FadeIn>
+      )}
 
       {top ? (
         <FadeIn delay={180}>

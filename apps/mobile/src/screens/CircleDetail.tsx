@@ -188,6 +188,22 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
         ))}
       </View>
 
+      <View style={s.card}>
+        <Text style={s.h3}>Circle facts</Text>
+        {[
+          ['Daily step', d.contributionAmount ? `₦${Number(d.contributionAmount).toLocaleString()}` : 'Free amount'],
+          ['Cycle length', `${d.cycleLengthDays} days`],
+          ['Seats', d.targetMembers ? `${d.members.filter((m) => m.status === 'active').length} of ${d.targetMembers} filled` : `${d.members.length} members`],
+          ['Started', new Date(d.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })],
+          ['Your role', `${d.myMembership.role} · ${statusLabel(d.myMembership.status)}`],
+        ].map(([k, v]) => (
+          <View key={k} style={[s.row, { paddingVertical: 4 }]}>
+            <Text style={s.muted}>{k}</Text>
+            <Text style={s.text}>{v}</Text>
+          </View>
+        ))}
+      </View>
+
       {(cycles.data ?? []).length > 0 && (
         <View style={s.card}>
           <Text style={s.h3}>Rotation schedule</Text>

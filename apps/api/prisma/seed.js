@@ -25,6 +25,9 @@ const PEOPLE = [
   { email: 'chiamaka@circle.com', name: 'Chiamaka Eze' },
   { email: 'emeka@circle.com', name: 'Emeka Obi' },
   { email: 'funmi@circle.com', name: 'Funmi Balogun' },
+  { email: 'tunde@circle.com', name: 'Tunde Bakare' },
+  { email: 'amaka@circle.com', name: 'Amaka Nwosu' },
+  { email: 'ngozi@circle.com', name: 'Ngozi Eze' },
   { email: 'james@circle.com', name: 'James Cole', password: '12345678' },
   { email: 'jasowills01@gmail.com', name: 'Jason Amadi' },
 ];
@@ -146,6 +149,14 @@ async function main() {
     for (let i = 0; i < count; i++) await fundTx(a.id, a1, email, 20000, day);
     day -= 1;
   }
+  // Second wave, days 6-9: the pot climbs toward 660k.
+  const A2 = [
+    ['ada@circle.com', 2, 9], ['bayo@circle.com', 2, 8], ['chiamaka@circle.com', 1, 9],
+    ['emeka@circle.com', 1, 8], ['jasowills01@gmail.com', 1, 7], ['james@circle.com', 1, 6],
+  ];
+  for (const [email, count, ago] of A2) {
+    for (let i = 0; i < count; i++) await fundTx(a.id, a1, email, 20000, ago);
+  }
 
   // B. Ibeju Land Ajo — completed full rotation (70k = 7 daily payments each).
   const b = await makeCircle({
@@ -173,6 +184,13 @@ async function main() {
     name: 'Saturday Thrift', contrib: 5000, ago: 3, status: 'forming',
     members: [['emeka@circle.com', 'creator', 3]],
     invitees: [['funmi@circle.com', 2]],
+  });
+
+  // F. Rent Save-Up — Jason's own forming circle, two seats to fill.
+  await makeCircle({
+    name: 'Rent Save-Up', contrib: 10000, ago: 3, status: 'forming',
+    members: [['jasowills01@gmail.com', 'creator', 3], ['ada@circle.com', 'member', 2]],
+    invitees: [['tunde@circle.com', 1], ['ngozi@circle.com', 1]],
   });
 
   // E. Demo Day Ajo — 1,000,000/1,050,000. James's next ₦50k tap completes it

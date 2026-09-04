@@ -6,6 +6,15 @@ import { useAuth } from '../auth';
 import { I } from '../icons';
 import { AreaChart, Donut, CycleTimeline } from '../charts';
 
+interface Notice {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  circleId: string | null;
+  at: string;
+}
+
 function greeting(name: string): string {
   const h = new Date().getHours();
   const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
@@ -30,6 +39,13 @@ export function Overview() {
   });
 
   const list = circles ?? [];
+  const notices = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.get<Notice[]>('/notifications'),
+  });
+  const attention = (notices.data ?? []).filter((n) =>
+    ['contribute_due', 'invite_pending', 'payout_countdown', 'collect_soon'].includes(n.kind),
+  ).slice(0, 4);
   const activity = useQuery({
     queryKey: ['overview-activity', list.map((c) => c.id).join(',')],
     queryFn: async (): Promise<ActivityItem[]> => {
@@ -130,6 +146,23 @@ export function Overview() {
         </div>
 
         <div>
+          {attention.length > 0 && (
+            <div className="card">
+              <div className="row" style={{ justifyContent: 'space-between' }}>
+                <h3>Needs your attention</h3>
+                <I.bell size={17} />
+              </div>
+              <ul className="feed">
+                {attention.map((n) => (
+                  <li key={n.id} onClick={() => n.circleId && nav(`/circles/${n.circleId}`)} style={{ cursor: n.circleId ? 'pointer' : 'default' }}>
+                    {n.title}
+                    <div className="muted" style={{ fontSize: 12 }}>{n.body}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {top && (
             <div className="card">
               <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>Closest to goal</div>

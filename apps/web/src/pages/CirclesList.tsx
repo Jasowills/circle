@@ -111,7 +111,8 @@ export function CirclesList() {
           )}
         </div>
 
-        <div className="card">
+        <div>
+          <div className="card">
           <h3 className="serif" style={{ fontSize: 22 }}>Start a new circle</h3>
           <div className="row" style={{ marginBottom: 4 }}>
             <button className={mode === 'ajo' ? '' : 'ghost'} onClick={() => setMode('ajo')} style={{ flex: 1 }}>Ajo rotation</button>
@@ -148,6 +149,16 @@ export function CirclesList() {
               </button>
             </div>
           </form>
+          </div>
+
+          <div className="card">
+            <h3>How Ajo works</h3>
+            <ul className="feed">
+              <li><strong>Fixed daily steps.</strong> <span className="muted">Everyone contributes the same amount, on schedule.</span></li>
+              <li><strong>Weekly pots.</strong> <span className="muted">Daily steps × 7 days × members = one payout.</span></li>
+              <li><strong>Rotation order.</strong> <span className="muted">Drawn once when the circle fills. Everyone collects exactly once.</span></li>
+            </ul>
+          </div>
         </div>
       </div>
     </>

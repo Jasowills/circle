@@ -105,7 +105,11 @@ function Root() {
         ) : top?.name === 'notifications' ? (
           <NotificationsScreen onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} />
         ) : tab === 'home' ? (
-          <HomeScreen onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])} onOpenPeople={() => goTab('people')} />
+          <HomeScreen
+            onOpenCircle={(id) => setStack([...stack, { name: 'detail', id }])}
+            onOpenPeople={() => goTab('people')}
+            onOpenNotifications={() => setStack([...stack, { name: 'notifications' }])}
+          />
         ) : tab === 'circles' ? (
           <CirclesScreen onOpen={(id) => setStack([...stack, { name: 'detail', id }])} onCreate={() => setStack([...stack, { name: 'create' }])} />
         ) : tab === 'wallet' ? (

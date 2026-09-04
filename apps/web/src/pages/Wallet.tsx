@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, type WalletOverview } from '../api';
+import { api, type WalletOverview, type WalletTx } from '../api';
+
+function inOut(txns: WalletTx[], sign: 1 | -1): number {
+  return txns.reduce((s, t) => s + (Math.sign(Number(t.amount)) === sign ? Math.abs(Number(t.amount)) : 0), 0);
+}
 
 function txLabel(type: string): string {
   switch (type) {
@@ -50,6 +54,10 @@ export function WalletPage() {
           <div className="card hero">
             <div className="muted" style={{ fontSize: 13 }}>Balance</div>
             <div className="hero-big" style={{ color: 'var(--money)' }}>₦{Number(d?.balance ?? 0).toLocaleString()}</div>
+            <div className="row" style={{ gap: 24, marginTop: 8 }}>
+              <span><strong style={{ color: 'var(--money)' }}>+₦{inOut(d?.data ?? [], 1).toLocaleString()}</strong> <span className="muted">in</span></span>
+              <span><strong>−₦{inOut(d?.data ?? [], -1).toLocaleString()}</strong> <span className="muted">out</span></span>
+            </div>
           </div>
 
           <div className="card">
