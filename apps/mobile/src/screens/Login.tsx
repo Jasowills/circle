@@ -34,7 +34,9 @@ export function LoginScreen() {
   const [slide, setSlide] = useState(0);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [showDev, setShowDev] = useState(false);
+  // In Expo Go there is no Google button, so the dev form is the sign-in.
+  // Everywhere else it stays tucked behind "Trouble signing in?".
+  const [showDev, setShowDev] = useState(Constants.appOwnership === 'expo');
   const [err, setErr] = useState<string | null>(null);
   const pager = useRef<ScrollView>(null);
   const width = Dimensions.get('window').width - 32;
@@ -133,7 +135,7 @@ export function LoginScreen() {
             <Text style={[s.h2, { marginBottom: 0 }]}>Circle</Text>
           </View>
           {inExpoGo ? (
-            <Text style={s.muted}>Google sign-in needs a dev build. Use dev sign-in below while running in Expo Go.</Text>
+            <Text style={s.muted}>Running in Expo Go, so sign in below. Google needs a dev build.</Text>
           ) : (
             <TouchableOpacity
               style={s.btn}
@@ -143,9 +145,11 @@ export function LoginScreen() {
               <Text style={s.btnText}>Continue with Google</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={s.btnGhost} onPress={() => setShowDev(!showDev)}>
-            <Text style={s.btnGhostText}>Trouble signing in?</Text>
-          </TouchableOpacity>
+          {!inExpoGo && (
+            <TouchableOpacity style={s.btnGhost} onPress={() => setShowDev(!showDev)}>
+              <Text style={s.btnGhostText}>Trouble signing in?</Text>
+            </TouchableOpacity>
+          )}
           {showDev && (
             <View>
               <Text style={s.muted}>No Google credentials handy? Use dev sign-in below.</Text>
