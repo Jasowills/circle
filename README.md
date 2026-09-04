@@ -183,15 +183,3 @@ ID from step 1.
   Google creds, `WEB_APP_URL`, `ALLOW_DEV_LOGIN=false`; run `prisma migrate deploy`.
 - Web → Azure Static Web Apps (or Vercel) with `VITE_API_URL` pointing at the API.
 - Mobile → Expo EAS build, or run locally in an emulator for the demo video.
-
-## Submission checklist
-
-- [x] Ledger genuinely append-only (no update/delete paths in code)
-- [x] Idempotency demonstrably prevents duplicates (`replayed: true`)
-- [x] WebSocket live updates (verified: `contribution.created` received live)
-- [x] State machine `forming → active → goal_reached` (verified via API)
-- [x] Google OAuth end-to-end (web + mobile ID-token path; dev-login for local demo)
-- [ ] Hosted and reachable (deployment step)
-- [ ] Demo video: browser + Postman + mobile emulator
-- [ ] Email to c.nnadika@abbeymortgagebank.com before Tue 8th Sept 2026, 12:00pm
-- [ ] "Pre-Interview form (007).docx" filled and returned
