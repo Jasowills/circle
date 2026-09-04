@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './src/auth';
 import { ThemeProvider, useTheme } from './src/theme';
@@ -24,18 +25,18 @@ function Root() {
   return (
     <View style={{ flex: 1, backgroundColor: palette.bg }}>
       <View style={[s.row, { padding: 16, paddingTop: 56 }]}>
-        <TouchableOpacity onPress={() => setOpenId(null)}>
+        <TouchableOpacity onPress={() => setOpenId(null)} accessibilityRole="button" accessibilityLabel="Back to circles">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Logo size={22} />
             <Text style={[s.h1, { fontSize: 20 }]}>Circle</Text>
           </View>
         </TouchableOpacity>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <TouchableOpacity onPress={toggle}>
-            <Text style={s.muted}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <TouchableOpacity onPress={toggle} accessibilityRole="button" accessibilityLabel="Toggle light and dark mode" hitSlop={8}>
+            <Ionicons name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'} size={22} color={palette.text} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={signOut}>
-            <Text style={s.muted}>{user.name} · Logout</Text>
+          <TouchableOpacity onPress={signOut} accessibilityRole="button" accessibilityLabel={`Log out ${user.name}`} hitSlop={8}>
+            <Ionicons name="log-out-outline" size={22} color={palette.text} />
           </TouchableOpacity>
         </View>
       </View>
