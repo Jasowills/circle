@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, type CircleSummary, type LedgerEntry } from '../api';
 import { useAuth } from '../auth';
 import { useTheme } from '../theme';
+import { AnimatedMoneyBar, FadeIn } from '../anim';
 import { Greeting } from '../Avatar';
 
 const HERO = 'https://images.pexels.com/photos/3931607/pexels-photo-3931607.jpeg?auto=compress&cs=tinysrgb&w=1260';
@@ -45,6 +46,7 @@ export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: 
         {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
       </Text>
 
+      <FadeIn>
       <View style={[s.hero, { height: 200 }]}>
         <Image source={{ uri: HERO }} style={s.heroImage} />
         <View style={s.heroCaption}>
@@ -52,7 +54,9 @@ export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: 
           <Text style={s.heroBody}>saved together across {list.length} circle{list.length === 1 ? '' : 's'}</Text>
         </View>
       </View>
+      </FadeIn>
 
+      <FadeIn delay={90}>
       <View style={[s.row, { gap: 12, marginBottom: 12 }]}>
         <View style={[s.card, { flex: 1, marginBottom: 0, alignItems: 'center' }]}>
           <Ionicons name="people-outline" size={22} color={palette.text} />
@@ -60,26 +64,28 @@ export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: 
           <Text style={s.muted}>members</Text>
         </View>
         <View style={[s.card, { flex: 1, marginBottom: 0, alignItems: 'center' }]}>
-          <Ionicons name="trophy-outline" size={22} color={palette.text} />
-          <Text style={[s.h2, { marginTop: 6, marginBottom: 0 }]}>{list.filter((c) => c.status === 'goal_reached').length}</Text>
+          <Ionicons name="trophy-outline" size={22} color={palette.money} />
+          <Text style={[s.h2, { marginTop: 6, marginBottom: 0, color: palette.money }]}>{list.filter((c) => c.status === 'goal_reached' || c.status === 'completed').length}</Text>
           <Text style={s.muted}>goals hit</Text>
         </View>
       </View>
+      </FadeIn>
 
       {top ? (
+        <FadeIn delay={180}>
         <TouchableOpacity style={s.card} onPress={() => onOpenCircle(top.id)}>
           <View style={s.row}>
             <Text style={s.muted}>Closest to goal</Text>
             <Ionicons name="chevron-forward" size={16} color={palette.faint} />
           </View>
           <Text style={[s.h3, { marginTop: 6 }]}>{top.name}</Text>
-          <View style={s.bar}>
-            <View style={[s.barFill, { width: `${Math.round(top.progress * 100)}%` }]} />
-          </View>
+          <AnimatedMoneyBar progress={top.progress} />
           <Text style={s.muted}>{Math.round(top.progress * 100)}% of {Number(top.goalAmount).toLocaleString()} {top.currency}</Text>
         </TouchableOpacity>
+        </FadeIn>
       ) : null}
 
+      <FadeIn delay={260}>
       <View style={s.card}>
         <View style={s.row}>
           <Text style={s.h3}>Latest activity</Text>
@@ -90,13 +96,14 @@ export function HomeScreen({ onOpenCircle, onOpenPeople }: { onOpenCircle: (id: 
         {(activity.data ?? []).map((e) => (
           <View key={e.id} style={[s.row, { paddingVertical: 6 }]}>
             <Text style={s.text}>{e.user.name} <Text style={s.muted}>· {e.circleName}</Text></Text>
-            <Text style={s.text}>+{Number(e.amount).toLocaleString()}</Text>
+            <Text style={[s.text, { color: palette.money, fontWeight: '700' }]}>+{Number(e.amount).toLocaleString()}</Text>
           </View>
         ))}
         {(!activity.data || activity.data.length === 0) && (
           <Text style={s.muted}>Nothing yet. Contributions from your circles land here.</Text>
         )}
       </View>
+      </FadeIn>
     </ScrollView>
   );
 }

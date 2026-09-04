@@ -49,7 +49,7 @@ export function WalletPage() {
         <div>
           <div className="card hero">
             <div className="muted" style={{ fontSize: 13 }}>Balance</div>
-            <div className="hero-big">₦{Number(d?.balance ?? 0).toLocaleString()}</div>
+            <div className="hero-big" style={{ color: 'var(--money)' }}>₦{Number(d?.balance ?? 0).toLocaleString()}</div>
           </div>
 
           <div className="card">
@@ -67,7 +67,7 @@ export function WalletPage() {
                 <input type="number" min={100} value={amount} onChange={(e) => setAmount(e.target.value)} required />
               </div>
               <div style={{ flex: '0 0 auto' }}>
-                <button type="submit" disabled={fund.isPending}>{fund.isPending ? 'Funding…' : 'Fund wallet'}</button>
+                <button type="submit" className="money" disabled={fund.isPending}>{fund.isPending ? 'Funding…' : 'Fund wallet'}</button>
               </div>
             </form>
             {msg && <p className="muted" style={{ fontSize: 13 }}>{msg}</p>}
@@ -79,7 +79,10 @@ export function WalletPage() {
           <ul className="feed">
             {(d?.data ?? []).map((t) => (
               <li key={t.id}>
-                {txLabel(t.type)} · <strong>{Number(t.amount) < 0 ? '−' : '+'}₦{Math.abs(Number(t.amount)).toLocaleString()}</strong>
+                {txLabel(t.type)} ·{' '}
+                <strong style={Number(t.amount) >= 0 ? { color: 'var(--money)' } : undefined}>
+                  {Number(t.amount) < 0 ? '−' : '+'}₦{Math.abs(Number(t.amount)).toLocaleString()}
+                </strong>
                 <span className="muted"> · {new Date(t.createdAt).toLocaleString()}</span>
               </li>
             ))}

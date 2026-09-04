@@ -6,6 +6,7 @@ import * as Crypto from 'expo-crypto';
 import { API_URL, api, getAccessToken, type CircleDetail, type Cycle, type WalletOverview } from '../api';
 import { useTheme } from '../theme';
 import { useAuth } from '../auth';
+import { AnimatedBar, AnimatedMoneyBar, FadeIn, PulseDot } from '../anim';
 import { Avatar } from '../Avatar';
 
 interface FeedItem {
@@ -110,23 +111,24 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 32 }}>
+      <FadeIn>
       <View style={s.card}>
         <View style={s.row}>
           <Text style={s.h2}>{d.name}</Text>
-          <Text style={[s.pill, (d.status === 'active' || d.status === 'goal_reached') && s.pillSolid]}>
+          <Text style={[s.pill, (d.status === 'active') && s.pillSolid, (d.status === 'goal_reached' || d.status === 'completed') && s.pillMoney]}>
             {d.status.replace('_', ' ')}
           </Text>
         </View>
-        <View style={s.bar}>
-          <View style={[s.barFill, { width: `${Math.round(d.progress * 100)}%` }]} />
-        </View>
+        <AnimatedBar progress={d.progress} />
         <Text style={s.text}>
           {Number(d.balance).toLocaleString()} <Text style={s.muted}>of {Number(d.goalAmount).toLocaleString()} {d.currency}</Text>
         </Text>
         <Text style={s.muted}>Your share: {Number(d.myBalance).toLocaleString()}</Text>
       </View>
+      </FadeIn>
 
       {d.currentCycle ? (
+        <FadeIn delay={120}>
         <View style={s.card}>
           <View style={s.row}>
             <Text style={s.h3}>Cycle {d.currentCycle.cycleNumber} of {d.currentCycle.totalCycles}</Text>
@@ -139,13 +141,12 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
               <>{d.currentCycle.recipient.name} collects this cycle</>
             )}
           </Text>
-          <View style={s.bar}>
-            <View style={[s.barFill, { width: `${Math.min(100, Math.round((d.currentCycle.collected / d.currentCycle.targetPot) * 100))}%` }]} />
-          </View>
+          <AnimatedMoneyBar progress={d.currentCycle.collected / d.currentCycle.targetPot} />
           <Text style={s.muted}>
             {Number(d.currentCycle.collected).toLocaleString()} of {Number(d.currentCycle.targetPot).toLocaleString()} {d.currency} pot
           </Text>
         </View>
+        </FadeIn>
       ) : null}
 
       {msg ? (
@@ -212,7 +213,10 @@ export function CircleDetailScreen({ circleId }: { circleId: string }) {
       )}
 
       <View style={s.card}>
-        <Text style={s.h3}>● Live feed</Text>
+        <View style={[s.row, { justifyContent: 'flex-start', gap: 2 }]}>
+          <PulseDot />
+          <Text style={s.h3}>Live feed</Text>
+        </View>
         {feed.length === 0 && <Text style={s.muted}>Live. New contributions show up here.</Text>}
         {feed.map((f) => (
           <Text key={f.id} style={[s.text, { paddingVertical: 3 }]}>{f.text}</Text>

@@ -53,6 +53,7 @@ function makeStyles(t: Palette) {
     errorText: { color: t.text, fontSize: 14 },
     pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1, borderColor: t.border, color: t.muted, fontSize: 12, fontWeight: '700', overflow: 'hidden' },
     pillSolid: { backgroundColor: t.accent, borderColor: t.accent, color: t.accentInk },
+    pillMoney: { backgroundColor: t.money, borderColor: t.money, color: '#06281a' },
     row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     bar: { height: 12, backgroundColor: t.panel2, borderRadius: 999, overflow: 'hidden', marginVertical: 8 },
     barFill: { height: '100%', backgroundColor: t.accent },

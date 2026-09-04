@@ -154,7 +154,7 @@ export function CircleDetailPage() {
               <p style={{ margin: '8px 0 0' }}>
                 <strong>{d.currentCycle.recipient.name}</strong> collects this cycle.
               </p>
-              <div className="progress">
+              <div className="progress money">
                 <div style={{ width: `${Math.min(100, Math.round((d.currentCycle.collected / d.currentCycle.targetPot) * 100))}%` }} />
               </div>
               <span className="muted">

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
 import { api, type WalletOverview } from '../api';
 import { useTheme } from '../theme';
+import { FadeIn } from '../anim';
 
 const QUICK = [50000, 100000, 250000];
 
@@ -45,12 +46,15 @@ export function WalletScreen() {
     <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 32 }}>
       <Text style={[s.h1, { fontSize: 26, marginBottom: 12 }]}>Wallet</Text>
 
+      <FadeIn>
       <View style={s.card}>
         <Text style={s.muted}>Balance</Text>
         <Text style={[s.h1, { fontSize: 38, color: palette.money }]}>₦{Number(d?.balance ?? 0).toLocaleString()}</Text>
         <Text style={[s.muted, { marginTop: 4 }]}>Fund it first, then contribute. Contributions never overdraw.</Text>
       </View>
+      </FadeIn>
 
+      <FadeIn delay={100}>
       <View style={s.card}>
         <Text style={s.h3}>Top up (demo)</Text>
         <Text style={s.muted}>Instant test credit. Real payments plug in here later.</Text>
@@ -79,7 +83,9 @@ export function WalletScreen() {
         </TouchableOpacity>
         {msg ? <Text style={[s.muted, { marginTop: 8 }]}>{msg}</Text> : null}
       </View>
+      </FadeIn>
 
+      <FadeIn delay={200}>
       <View style={s.card}>
         <Text style={s.h3}>Transactions</Text>
         {(d?.data ?? []).map((t) => {
@@ -105,6 +111,7 @@ export function WalletScreen() {
         })}
         {(!d || d.data.length === 0) && <Text style={s.muted}>No transactions yet.</Text>}
       </View>
+      </FadeIn>
     </ScrollView>
   );
 }
