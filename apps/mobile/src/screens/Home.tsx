@@ -6,7 +6,7 @@ import { useAuth } from '../auth';
 import { useTheme } from '../theme';
 import { Greeting } from '../Avatar';
 
-const HERO = 'https://images.pexels.com/photos/3830752/pexels-photo-3830752.jpeg?auto=compress&cs=tinysrgb&w=1260';
+const HERO = 'https://images.pexels.com/photos/3931607/pexels-photo-3931607.jpeg?auto=compress&cs=tinysrgb&w=1260';
 
 interface ActivityItem extends LedgerEntry {
   circleName: string;
