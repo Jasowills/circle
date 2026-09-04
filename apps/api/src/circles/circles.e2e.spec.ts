@@ -19,6 +19,7 @@ describe('Circle e2e (demo flow)', () => {
   const stamp = Date.now();
   const emailA = `e2e-ada-${stamp}@example.com`;
   const emailB = `e2e-bayo-${stamp}@example.com`;
+  const emailPwd = `e2e-pwd-${stamp}@example.com`;
   let tokenA = '';
   let tokenB = '';
   let circleId = '';
@@ -40,7 +41,7 @@ describe('Circle e2e (demo flow)', () => {
   afterAll(async () => {
     // FK-safe cleanup of everything this run created.
     const users = await prisma.user.findMany({
-      where: { email: { in: [emailA, emailB] } },
+      where: { email: { in: [emailA, emailB, emailPwd] } },
       select: { id: true },
     });
     const uids = users.map((u) => u.id);
@@ -89,6 +90,24 @@ describe('Circle e2e (demo flow)', () => {
     expect(bad.status).toBe(400);
     const anon = await request(baseUrl).patch('/me').send({ name: 'x' });
     expect(anon.status).toBe(401);
+  });
+
+  it('signs up and logs in with a password', async () => {
+    const email = emailPwd;
+    const signup = await request(baseUrl).post('/auth/signup').send({ email, name: 'E2E Pwd', password: 'password123' });
+    expect(signup.status).toBe(201);
+    expect(signup.body.isNew).toBe(true);
+    const dup = await request(baseUrl).post('/auth/signup').send({ email, name: 'E2E Pwd', password: 'password123' });
+    expect(dup.status).toBe(409);
+    const login = await request(baseUrl).post('/auth/login').send({ email, password: 'password123' });
+    expect(login.status).toBe(201);
+    expect(login.body.isNew).toBe(false);
+    const wrong = await request(baseUrl).post('/auth/login').send({ email, password: 'wrongpass1' });
+    expect(wrong.status).toBe(401);
+    const unknown = await request(baseUrl).post('/auth/login').send({ email: 'nobody-here@example.com', password: 'password123' });
+    expect(unknown.status).toBe(401);
+    const short = await request(baseUrl).post('/auth/signup').send({ email: 'x@example.com', name: 'X', password: 'short' });
+    expect(short.status).toBe(400);
   });
 
   it('creates a forming circle and flips it active on second member accept', async () => {

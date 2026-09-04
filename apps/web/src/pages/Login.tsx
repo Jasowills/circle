@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_URL, api } from '../api';
+import { api } from '../api';
 import { googleLoginUrl, useAuth } from '../auth';
 import { Logo } from '../Logo';
 
@@ -32,6 +32,7 @@ export function Login() {
   const [mode, setMode] = useState<'join' | 'signin'>('join');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   const [showDev, setShowDev] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const last = slide === SLIDES.length - 1;
@@ -40,7 +41,11 @@ export function Login() {
     e.preventDefault();
     setErr(null);
     try {
-      const r = await api.post<{ accessToken: string; isNew: boolean }>('/auth/dev-login', { email, name: name || undefined });
+      const path = mode === 'join' ? '/auth/signup' : '/auth/login';
+      const body = mode === 'join'
+        ? { email, name: name || undefined, password }
+        : { email, password };
+      const r = await api.post<{ accessToken: string; isNew: boolean }>(path, body);
       await signIn(r.accessToken);
       nav(r.isNew ? '/setup' : '/');
     } catch (e) {
@@ -109,16 +114,22 @@ export function Login() {
           {showDev && (
             <>
               <p className="muted" style={{ fontSize: 13 }}>
-                No Google credentials handy? Use dev sign-in (needs <code>ALLOW_DEV_LOGIN=true</code> on the API at <code>{API_URL}</code>).
+                No Google account handy? Use email + password instead. Try <code>james@circle.com</code> / <code>12345678</code> on a seeded database.
               </p>
               {err && <div className="error">{err}</div>}
               <form onSubmit={devLogin}>
                 <label>Email</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ada@example.com" required />
-                <label>Name (optional)</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada" />
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="james@circle.com" required />
+                {mode === 'join' && (
+                  <>
+                    <label>Name</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="James" />
+                  </>
+                )}
+                <label>Password (8+ characters)</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
                 <div style={{ marginTop: 12 }}>
-                  <button type="submit">Dev sign-in</button>
+                  <button type="submit">{mode === 'join' ? 'Create account' : 'Sign in'}</button>
                 </div>
               </form>
             </>

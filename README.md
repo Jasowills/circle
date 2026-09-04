@@ -7,7 +7,7 @@ stored as a mutable column.
 
 | Pillar | Implementation |
 |---|---|
-| Authentication | Google OAuth 2.0 only. Backend issues its own JWT access + refresh pair. Refresh token in httpOnly cookie on web, `expo-secure-store` on mobile. `POST /auth/logout` revokes server-side. |
+| Authentication | Google OAuth 2.0 + email/password (bcrypt). Backend issues its own JWT access + refresh pair. Refresh token in httpOnly cookie on web, `expo-secure-store` on mobile. `POST /auth/logout` revokes server-side. |
 | Accounts | User profile (Google: name, email, avatar) + derived wallet per circle (`SUM(ledger)`). |
 | Relationships | Circle membership `invited → active`, roles `creator/member`, circle state machine `forming → active → goal_reached → closed` (server-enforced in `CircleStateService`). |
 
@@ -68,7 +68,9 @@ cd apps/api
 DATABASE_URL="postgresql://circle:circle@localhost:5432/circle" node prisma/seed.js
 ```
 
-Seeds five demo accounts plus `jasowills01@gmail.com` (you): an active
+Seeds five demo accounts (`ada`, `bayo`, `chiamaka`, `emeka`, `funmi` at
+`@circle.com`) plus `james@circle.com` (password `12345678`) and
+`jasowills01@gmail.com` (you): an active
 ₦5,000,000 mortgage circle at 70% with six weeks of contribution history, a
 completed ₦2,000,000 land circle at goal, and a forming emergency fund with
 your invite still pending. Log in as `jasowills01@gmail.com` (Google on web,

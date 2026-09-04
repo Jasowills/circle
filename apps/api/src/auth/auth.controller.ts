@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request, Response } from 'express';
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { AuthService, GoogleProfile } from './auth.service';
 
 class DevLoginDto {
@@ -21,6 +21,23 @@ class DevLoginDto {
   @IsOptional()
   @IsString()
   name?: string;
+}
+
+class PasswordDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  password!: string;
+}
+
+class SignupDto extends PasswordDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  name!: string;
 }
 
 function refreshCookieOptions(): { httpOnly: boolean; secure: boolean; sameSite: 'lax' | 'none'; path: string; maxAge: number } {
@@ -69,6 +86,22 @@ export class AuthController {
   @Post('dev-login')
   async devLogin(@Body() dto: DevLoginDto, @Res({ passthrough: true }) res: Response) {
     const { tokens, isNew } = await this.auth.devLogin(dto.email, dto.name);
+    res.cookie('refresh_token', tokens.refreshToken, refreshCookieOptions());
+    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
+  }
+
+  /** Email + password signup (bcrypt-hashed). */
+  @Post('signup')
+  async signup(@Body() dto: SignupDto, @Res({ passthrough: true }) res: Response) {
+    const { tokens, isNew } = await this.auth.signup(dto.email, dto.name, dto.password);
+    res.cookie('refresh_token', tokens.refreshToken, refreshCookieOptions());
+    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
+  }
+
+  /** Email + password login. */
+  @Post('login')
+  async login(@Body() dto: PasswordDto, @Res({ passthrough: true }) res: Response) {
+    const { tokens, isNew } = await this.auth.loginWithPassword(dto.email, dto.password);
     res.cookie('refresh_token', tokens.refreshToken, refreshCookieOptions());
     return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
   }

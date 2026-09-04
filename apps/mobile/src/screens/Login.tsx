@@ -35,6 +35,7 @@ export function LoginScreen() {
   const [mode, setMode] = useState<'join' | 'signin'>('join');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   // In Expo Go there is no Google button, so the dev form is the sign-in.
   // Everywhere else it stays tucked behind "Trouble signing in?".
   const [showDev, setShowDev] = useState(Constants.appOwnership === 'expo');
@@ -71,17 +72,18 @@ export function LoginScreen() {
 
   const devLogin = async () => {
     setErr(null);
-    console.log(`[Circle] dev sign-in attempt email=${email} api=${API_URL}`);
+    console.log(`[Circle] ${mode} attempt email=${email} api=${API_URL}`);
     try {
-      const t = await api.postPublic<{ accessToken: string; refreshToken: string; isNew: boolean }>('/auth/dev-login', {
-        email,
-        name: name || undefined,
-      });
-      console.log(`[Circle] dev sign-in ok isNew=${t.isNew}`);
+      const path = mode === 'join' ? '/auth/signup' : '/auth/login';
+      const body = mode === 'join'
+        ? { email, name: name || undefined, password }
+        : { email, password };
+      const t = await api.postPublic<{ accessToken: string; refreshToken: string; isNew: boolean }>(path, body);
+      console.log(`[Circle] ${mode} ok isNew=${t.isNew}`);
       await signIn(t.accessToken, t.refreshToken, t.isNew);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Login failed';
-      console.log(`[Circle] dev sign-in FAILED: ${msg}`);
+      console.log(`[Circle] ${mode} FAILED: ${msg}`);
       setErr(msg);
     }
   };
@@ -168,16 +170,22 @@ export function LoginScreen() {
           )}
           {showDev && (
             <View>
-              <Text style={s.muted}>No Google credentials handy? Use dev sign-in below.</Text>
+              <Text style={s.muted}>No Google account handy? Use email + password below.</Text>
               {err ? (
                 <View style={s.error}>
                   <Text style={s.errorText}>{err}</Text>
                 </View>
               ) : null}
               <Text style={s.label}>Email</Text>
-              <TextInput style={s.input} value={email} onChangeText={setEmail} placeholder="ada@example.com" placeholderTextColor={palette.placeholder} autoCapitalize="none" keyboardType="email-address" />
-              <Text style={s.label}>Name (optional)</Text>
-              <TextInput style={s.input} value={name} onChangeText={setName} placeholder="Ada" placeholderTextColor={palette.placeholder} />
+              <TextInput style={s.input} value={email} onChangeText={setEmail} placeholder="james@circle.com" placeholderTextColor={palette.placeholder} autoCapitalize="none" keyboardType="email-address" />
+              {mode === 'join' && (
+                <>
+                  <Text style={s.label}>Name</Text>
+                  <TextInput style={s.input} value={name} onChangeText={setName} placeholder="James" placeholderTextColor={palette.placeholder} />
+                </>
+              )}
+              <Text style={s.label}>Password (8+ characters)</Text>
+              <TextInput style={s.input} value={password} onChangeText={setPassword} placeholder="••••••••" placeholderTextColor={palette.placeholder} secureTextEntry autoCapitalize="none" />
               <TouchableOpacity style={s.btn} onPress={devLogin}>
                 <Text style={s.btnText}>{mode === 'join' ? 'Create account' : 'Sign in'}</Text>
               </TouchableOpacity>

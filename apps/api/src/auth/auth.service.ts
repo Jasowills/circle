@@ -1,6 +1,7 @@
-import { Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
+import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -120,6 +121,33 @@ export class AuthService {
     this.logger.log(JSON.stringify({ event: 'auth.dev_login', userId: user.id }));
     const tokens = await this.issueTokens(user.id);
     return { userId: user.id, tokens, isNew };
+  }
+
+  /** Email + password signup. Passwords are bcrypt-hashed; Google users have none. */
+  async signup(email: string, name: string, password: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
+    const normalized = email.trim().toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email: normalized } });
+    if (existing) throw new ConflictException('An account with that email already exists');
+    const user = await this.prisma.user.create({
+      data: {
+        googleId: `pwd:${normalized}`,
+        email: normalized,
+        name: name.trim(),
+        passwordHash: await hash(password, 10),
+      },
+    });
+    this.logger.log(JSON.stringify({ event: 'auth.signup', userId: user.id }));
+    return { userId: user.id, tokens: await this.issueTokens(user.id), isNew: true };
+  }
+
+  async loginWithPassword(email: string, password: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
+    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    if (!user?.passwordHash || !(await compare(password, user.passwordHash))) {
+      // Same response for unknown email and wrong password: no account oracle.
+      throw new UnauthorizedException('Email or password is incorrect');
+    }
+    this.logger.log(JSON.stringify({ event: 'auth.login', userId: user.id }));
+    return { userId: user.id, tokens: await this.issueTokens(user.id), isNew: false };
   }
 
   async refresh(refreshToken: string): Promise<TokenPair> {
