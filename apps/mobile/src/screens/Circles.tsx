@@ -46,7 +46,7 @@ export function CirclesScreen({ onOpen, onCreate }: { onOpen: (id: string) => vo
       </View>
 
       {tab === 'discover' && (
-        <View style={[s.row, { gap: 8, backgroundColor: palette.panel2, borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.border, marginBottom: 12 }]}>
+        <View style={[s.row, { gap: 8, backgroundColor: palette.panel2, borderRadius: 4, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.border, marginBottom: 12 }]}>
           <Ionicons name="search-outline" size={18} color={palette.muted} />
           <TextInput
             style={{ flex: 1, color: palette.text, paddingVertical: 12, fontSize: 15 }}

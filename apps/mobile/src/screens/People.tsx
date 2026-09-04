@@ -46,7 +46,7 @@ export function PeopleScreen({ onOpenProfile }: { onOpenProfile: (id: string) =>
     <View style={s.screen}>
       <Text style={[s.h1, { fontSize: 26, marginBottom: 4 }]}>People</Text>
       <Text style={[s.muted, { marginBottom: 12 }]}>Anyone on Circle. Open a profile to invite them.</Text>
-      <View style={[s.row, { gap: 8, backgroundColor: palette.panel2, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.border }]}>
+      <View style={[s.row, { gap: 8, backgroundColor: palette.panel2, borderRadius: 4, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.border }]}>
         <Ionicons name="search-outline" size={18} color={palette.muted} />
         <TextInput
           style={[{ flex: 1, color: palette.text, paddingVertical: 12, fontSize: 15 }]}
