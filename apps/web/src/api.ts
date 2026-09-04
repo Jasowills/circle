@@ -81,6 +81,8 @@ export interface CircleSummary {
   progress: number;
   memberCount: number;
   activeMemberCount: number;
+  contributionAmount?: number | null;
+  targetMembers?: number | null;
 }
 
 export interface CircleDetail extends CircleSummary {

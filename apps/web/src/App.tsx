@@ -2,10 +2,12 @@ import { Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-route
 import { AuthProvider, useAuth } from './auth';
 import { ThemeProvider, useTheme } from './theme';
 import { Logo } from './Logo';
+import { I } from './icons';
 import { Login, AuthCallback } from './pages/Login';
 import { Setup } from './pages/Setup';
 import { Overview } from './pages/Overview';
 import { WalletPage } from './pages/Wallet';
+import { SettingsPage } from './pages/Settings';
 import { CirclesList } from './pages/CirclesList';
 import { CircleDetailPage } from './pages/CircleDetail';
 
@@ -22,19 +24,22 @@ function Shell() {
           Circle
         </Link>
         <NavLink to="/" end className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
-          Overview
+          <I.home size={17} /> Overview
         </NavLink>
         <NavLink to="/circles" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
-          Circles
+          <I.grid size={17} /> Circles
         </NavLink>
         <NavLink to="/wallet" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
-          Wallet
+          <I.wallet size={17} /> Wallet
+        </NavLink>
+        <NavLink to="/settings" className={({ isActive }) => (isActive ? 'navlink on' : 'navlink')}>
+          <I.gear size={17} /> Settings
         </NavLink>
         <div className="side-foot">
           <span className="muted" style={{ fontSize: 13 }}>{user.name}</span>
           <div className="row">
-            <button className="ghost" onClick={toggle} title="Toggle light / dark">
-              {theme === 'dark' ? 'Light' : 'Dark'}
+            <button className="ghost" onClick={toggle} title="Toggle light / dark" aria-label="Toggle light and dark mode" style={{ padding: '9px 12px' }}>
+              {theme === 'dark' ? <I.sun size={17} /> : <I.moon size={17} />}
             </button>
             <button className="ghost" onClick={() => signOut().then(() => nav('/login'))}>
               Logout
@@ -47,6 +52,7 @@ function Shell() {
           <Route path="/" element={<Overview />} />
           <Route path="/circles" element={<CirclesList />} />
           <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/setup" element={<Setup />} />
           <Route path="/circles/:id" element={<CircleDetailPage />} />
         </Routes>
