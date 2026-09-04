@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CirclesModule } from './circles/circles.module';
 import { LedgerModule } from './ledger/ledger.module';
+import { WalletModule } from './wallet/wallet.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ProgressModule } from './progress/progress.module';
 
@@ -18,6 +19,7 @@ import { ProgressModule } from './progress/progress.module';
     UsersModule,
     CirclesModule,
     LedgerModule,
+    WalletModule,
     RealtimeModule,
     ProgressModule,
   ],

@@ -41,7 +41,7 @@ describe('Circle e2e (demo flow)', () => {
   afterAll(async () => {
     // FK-safe cleanup of everything this run created.
     const users = await prisma.user.findMany({
-      where: { email: { in: [emailA, emailB, emailPwd] } },
+      where: { email: { in: [emailA, emailB, emailPwd, `e2e-x-${stamp}@example.com`, `e2e-y-${stamp}@example.com`, `e2e-z-${stamp}@example.com`] } },
       select: { id: true },
     });
     const uids = users.map((u) => u.id);
@@ -177,6 +177,90 @@ describe('Circle e2e (demo flow)', () => {
     }
   });
 
+  it('runs a full Ajo rotation: wallet debit, cycle payout, completion', async () => {
+    const x = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-x-${stamp}@example.com` });
+    const y = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-y-${stamp}@example.com` });
+    const tX = x.body.accessToken as string;
+    const tY = y.body.accessToken as string;
+    const idX = x.body.userId as string;
+
+    const c = await request(baseUrl).post('/circles')
+      .set('Authorization', `Bearer ${tX}`)
+      .send({ name: 'E2E Ajo', goalAmount: 14000, contributionAmount: 1000, targetMembers: 2, cycleLengthDays: 7 });
+    expect(c.status).toBe(201);
+    expect(c.body.status).toBe('forming');
+    const rc = c.body.id as string;
+    createdCircleIds.push(rc);
+
+    await request(baseUrl).post(`/circles/${rc}/invite`)
+      .set('Authorization', `Bearer ${tX}`)
+      .send({ email: `e2e-y-${stamp}@example.com` });
+    const acc = await request(baseUrl).post(`/circles/${rc}/accept`)
+      .set('Authorization', `Bearer ${tY}`);
+    expect(acc.body.status).toBe('active');
+
+    const sched = await request(baseUrl).get(`/circles/${rc}/cycles`)
+      .set('Authorization', `Bearer ${tX}`);
+    expect(sched.status).toBe(200);
+    expect(sched.body).toHaveLength(2);
+    expect(sched.body[0].status).toBe('collecting');
+    expect(sched.body[0].targetPot).toBe(14000);
+    const firstRecipient: string = sched.body[0].recipient.id;
+
+    const w0 = await request(baseUrl).get('/wallet')
+      .set('Authorization', `Bearer ${tX}`);
+    expect(w0.body.balance).toBe(100000); // demo-funded on first touch
+
+    const k1 = randomUUID();
+    const pay1 = await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tX}`)
+      .send({ amount: 10000, idempotencyKey: k1 });
+    expect(pay1.status).toBe(200);
+    const w1 = await request(baseUrl).get('/wallet')
+      .set('Authorization', `Bearer ${tX}`);
+    expect(w1.body.balance).toBe(90000); // debited
+
+    const pay2 = await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tY}`)
+      .send({ amount: 4000, idempotencyKey: randomUUID() });
+    expect(pay2.status).toBe(200);
+
+    // Pot full (14000): cycle 1 paid out, cycle 2 collecting.
+    const sched2 = await request(baseUrl).get(`/circles/${rc}/cycles`)
+      .set('Authorization', `Bearer ${tX}`);
+    expect(sched2.body[0].status).toBe('payout_completed');
+    expect(sched2.body[1].status).toBe('collecting');
+    const recipToken = firstRecipient === idX ? tX : tY;
+    const wRecip = await request(baseUrl).get('/wallet')
+      .set('Authorization', `Bearer ${recipToken}`);
+    expect(Number(wRecip.body.balance)).toBeGreaterThan(90000);
+
+    // Fill cycle 2 → rotation completes.
+    await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tX}`)
+      .send({ amount: 14000, idempotencyKey: randomUUID() });
+    const done = await request(baseUrl).get(`/circles/${rc}`)
+      .set('Authorization', `Bearer ${tX}`);
+    expect(done.body.status).toBe('completed');
+    const closed = await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tX}`)
+      .send({ amount: 10, idempotencyKey: randomUUID() });
+    expect(closed.status).toBe(400);
+  });
+
+  it('rejects contributions the wallet cannot cover', async () => {
+    const z = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-z-${stamp}@example.com` });
+    const tZ = z.body.accessToken as string;
+    const c = await request(baseUrl).post('/circles')
+      .set('Authorization', `Bearer ${tZ}`)
+      .send({ name: 'E2E Poor', goalAmount: 100 });
+    const rc = c.body.id as string;
+    createdCircleIds.push(rc);
+    const poor = await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tZ}`)
+      .send({ amount: 200000, idempotencyKey: randomUUID() });
+    expect(poor.status).toBe(400);
+  });
   it('crosses the goal and exposes a 2-row audit trail', async () => {
     const push = await request(baseUrl)
       .post(`/circles/${circleId}/contribute`)

@@ -5,15 +5,17 @@ export interface CircleSnapshot {
   id: string;
   status: CircleStatus;
   goalAmount: number;
+  targetMembers?: number | null;
 }
 
 /**
  * Status decisions live here and nowhere else. Call nextStatus() instead of
  * inlining `if` checks in controllers or services.
  *
- *   forming --(>=2 active members)--> active
- *   active  --(balance >= goal)-----> goal_reached
- *   active|goal_reached --(creator)--> closed   (explicit close action only)
+ *   forming --(full: activeMembers >= targetMembers, else >= 2)--> active
+ *   active  --(balance >= goal, legacy goal circles)-------------> goal_reached
+ *   active  --(last cycle paid, rotation circles)----------------> completed
+ *   active|goal_reached|completed --(creator)--> closed
  */
 @Injectable()
 export class CircleStateService {
@@ -25,16 +27,17 @@ export class CircleStateService {
     activeMemberCount: number,
     balance: number,
   ): CircleStatus | null {
-    if (snapshot.status === 'forming' && activeMemberCount >= 2) return 'active';
+    const needed = snapshot.targetMembers && snapshot.targetMembers >= 2 ? snapshot.targetMembers : 2;
+    if (snapshot.status === 'forming' && activeMemberCount >= needed) return 'active';
     if (snapshot.status === 'active' && balance >= snapshot.goalAmount) return 'goal_reached';
     return null;
   }
 
   canClose(status: CircleStatus): boolean {
-    return status === 'active' || status === 'goal_reached';
+    return status === 'active' || status === 'goal_reached' || status === 'completed';
   }
 
-  logTransition(circleId: string, from: CircleStatus, to: CircleStatus, reason: string) {
+  logTransition(circleId: string, from: string, to: string, reason: string) {
     this.logger.log(JSON.stringify({ event: 'circle.status_changed', circleId, from, to, reason }));
   }
 }

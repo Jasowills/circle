@@ -11,6 +11,7 @@ enum CircleStatus {
   forming
   active
   goal_reached
+  completed
   closed
 }
 
@@ -43,6 +44,8 @@ model User {
   ledgerEntries LedgerEntry[]
   refreshTokens RefreshToken[]
   createdCircles Circle[] @relation("CreatedCircles")
+  cyclesReceived CircleCycle[] @relation("CycleRecipients")
+  wallet Wallet?
 }
 
 model Circle {
@@ -55,8 +58,70 @@ model Circle {
   createdBy   User         @relation("CreatedCircles", fields: [createdById], references: [id])
   createdAt   DateTime     @default(now())
 
+  // Rotation (v2 Ajo mechanics). Null = legacy goal-only circle.
+  contributionAmount Decimal? @db.Decimal(18, 2)
+  targetMembers      Int?
+  cycleLengthDays    Int      @default(7)
+  rotationMode       String   @default("random_draw")
+  rotationOrder      String[] @default([])
+
   memberships CircleMembership[]
   ledgerEntries LedgerEntry[]
+  cycles CircleCycle[]
+}
+
+enum CycleStatus {
+  pending
+  collecting
+  payout_completed
+}
+
+model CircleCycle {
+  id            String      @id @default(uuid())
+  circleId      String
+  circle        Circle      @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  cycleNumber   Int
+  recipientId   String
+  recipient     User        @relation("CycleRecipients", fields: [recipientId], references: [id])
+  startsAt      DateTime
+  endsAt        DateTime
+  targetPot     Decimal     @db.Decimal(18, 2)
+  status        CycleStatus @default(pending)
+
+  @@unique([circleId, cycleNumber])
+  @@index([circleId])
+}
+
+enum WalletTxType {
+  demo_fund
+  fund
+  circle_contribution
+  circle_payout
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id             String       @id @default(uuid())
+  walletId       String
+  wallet         Wallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amount         Decimal      @db.Decimal(18, 2)
+  type           WalletTxType
+  relatedCircleId String?
+  relatedCycleId  String?
+  idempotencyKey String
+  createdAt      DateTime     @default(now())
+
+  // Same append-only + idempotency discipline as the circle ledger.
+  @@unique([walletId, idempotencyKey])
+  @@index([walletId])
 }
 
 model CircleMembership {
@@ -83,6 +148,7 @@ model LedgerEntry {
   amount         Decimal    @db.Decimal(18, 2)
   type           LedgerType @default(contribution)
   idempotencyKey String
+  cycleId        String?
   createdAt      DateTime   @default(now())
 
   // Idempotency: a retried request with the same key returns the original row.

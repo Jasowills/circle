@@ -7,6 +7,7 @@ import {
 import { CircleStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { WalletService } from '../wallet/wallet.service';
 import { CircleStateService } from './circle-state.service';
 import { CircleEvents } from '../realtime/circle-events';
 
@@ -15,17 +16,27 @@ export class CirclesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
+    private readonly wallet: WalletService,
     private readonly state: CircleStateService,
     private readonly events: CircleEvents,
   ) {}
 
-  async create(creatorId: string, name: string, goalAmount: number, currency?: string) {
+  async create(
+    creatorId: string,
+    name: string,
+    goalAmount: number,
+    currency?: string,
+    rotation?: { contributionAmount?: number; targetMembers?: number; cycleLengthDays?: number },
+  ) {
     const circle = await this.prisma.circle.create({
       data: {
         name: name.trim(),
         goalAmount,
         currency: (currency ?? 'NGN').toUpperCase(),
         createdById: creatorId,
+        contributionAmount: rotation?.contributionAmount,
+        targetMembers: rotation?.targetMembers,
+        cycleLengthDays: rotation?.cycleLengthDays ?? 7,
         memberships: {
           create: { userId: creatorId, role: 'creator', status: 'active', joinedAt: new Date() },
         },
@@ -33,6 +44,52 @@ export class CirclesService {
       include: { memberships: true },
     });
     return this.detail(circle.id, creatorId);
+  }
+
+  /** Public forming circles the viewer hasn't joined. Searchable by name. */
+  async discover(viewerId: string, q?: string) {
+    const circles = await this.prisma.circle.findMany({
+      where: {
+        status: 'forming',
+        ...(q?.trim() ? { name: { contains: q.trim(), mode: 'insensitive' } } : {}),
+        memberships: { none: { userId: viewerId } },
+      },
+      include: {
+        _count: { select: { memberships: true } },
+        memberships: { where: { status: 'active' }, select: { userId: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+    return Promise.all(
+      circles.map(async (c) => ({
+        ...(await this.summarize(c.id)),
+        activeMemberIds: c.memberships.map((m) => m.userId),
+      })),
+    );
+  }
+
+  /** Rotation schedule with per-cycle collection progress + recipient names. */
+  async cycles(circleId: string, viewerId: string) {
+    await this.requireCircle(circleId);
+    await this.requireMember(circleId, viewerId);
+    const rows = await this.prisma.circleCycle.findMany({
+      where: { circleId },
+      include: { recipient: { select: { id: true, name: true } } },
+      orderBy: { cycleNumber: 'asc' },
+    });
+    return Promise.all(
+      rows.map(async (c) => ({
+        id: c.id,
+        cycleNumber: c.cycleNumber,
+        recipient: c.recipient,
+        startsAt: c.startsAt,
+        endsAt: c.endsAt,
+        targetPot: Number(c.targetPot),
+        collected: await this.cycleCollected(circleId, c.id),
+        status: c.status,
+      })),
+    );
   }
 
   async listForUser(userId: string) {
@@ -78,9 +135,34 @@ export class CirclesService {
       createdAt: circle.createdAt,
       balance,
       progress: goal > 0 ? Math.min(1, balance / goal) : 0,
+      contributionAmount: circle.contributionAmount !== null ? Number(circle.contributionAmount) : null,
+      targetMembers: circle.targetMembers,
+      cycleLengthDays: circle.cycleLengthDays,
+      currentCycle: await this.currentCycleView(circleId),
       myMembership: { role: mine.role, status: mine.status },
       myBalance: await this.ledger.memberBalance(circleId, viewerId),
       members,
+    };
+  }
+
+  private async currentCycleView(circleId: string) {
+    const cycle = await this.prisma.circleCycle.findFirst({
+      where: { circleId, status: 'collecting' },
+      include: { recipient: { select: { id: true, name: true } } },
+    });
+    if (!cycle) return null;
+    const [collected, total] = await Promise.all([
+      this.cycleCollected(circleId, cycle.id),
+      this.prisma.circleCycle.count({ where: { circleId } }),
+    ]);
+    return {
+      id: cycle.id,
+      cycleNumber: cycle.cycleNumber,
+      totalCycles: total,
+      recipient: cycle.recipient,
+      targetPot: Number(cycle.targetPot),
+      collected,
+      endsAt: cycle.endsAt,
     };
   }
 
@@ -124,19 +206,147 @@ export class CirclesService {
 
   async contribute(circleId: string, userId: string, amount: number, idempotencyKey: string) {
     const circle = await this.requireCircle(circleId);
-    if (circle.status === 'closed') throw new BadRequestException('Circle is closed');
-    await this.requireActiveMember(circleId, userId);
-
-    const result = await this.ledger.contribute(circleId, userId, amount, idempotencyKey);
-    if (!result.replayed) {
-      this.events.contributionCreated(circleId, {
-        entryId: result.entry.id,
-        userId,
-        amount: result.entry.amount,
-      });
-      await this.applyTransitions(circleId, 'contribution');
+    if (circle.status === 'closed' || circle.status === 'completed') {
+      throw new BadRequestException('This circle is no longer collecting');
     }
-    return { ...result, circle: await this.summarize(circleId) };
+    await this.requireActiveMember(circleId, userId);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Amount must be a positive number');
+    }
+    const key = idempotencyKey.trim();
+
+    // Sequential replay first: the common retry path never touches the wallet.
+    const replay = await this.prisma.ledgerEntry.findUnique({
+      where: { circleId_userId_idempotencyKey: { circleId, userId, idempotencyKey: key } },
+    });
+    if (replay) {
+      return { entry: this.presentLedger(replay), replayed: true, circle: await this.summarize(circleId) };
+    }
+
+    const wallet = await this.wallet.getWallet(userId);
+    const currentCycle = await this.prisma.circleCycle.findFirst({
+      where: { circleId, status: 'collecting' },
+    });
+
+    // One Postgres transaction: wallet debit + ledger credit, or neither.
+    // A race on the key rolls everything back and falls through to replay.
+    let entry;
+    try {
+      entry = await this.prisma.$transaction(async (tx) => {
+        const agg = await tx.walletTransaction.aggregate({
+          where: { walletId: wallet.id },
+          _sum: { amount: true },
+        });
+        if (Number(agg._sum.amount ?? 0) < amount) {
+          throw new BadRequestException('Insufficient wallet balance. Fund your wallet first.');
+        }
+        await tx.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: -amount,
+            type: 'circle_contribution',
+            relatedCircleId: circleId,
+            relatedCycleId: currentCycle?.id,
+            idempotencyKey: `contrib:${key}`,
+          },
+        });
+        return tx.ledgerEntry.create({
+          data: { circleId, userId, amount, type: 'contribution', idempotencyKey: key, cycleId: currentCycle?.id },
+        });
+      });
+    } catch (err: unknown) {
+      if (typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002') {
+        const winner = await this.prisma.ledgerEntry.findUnique({
+          where: { circleId_userId_idempotencyKey: { circleId, userId, idempotencyKey: key } },
+        });
+        if (winner) {
+          return { entry: this.presentLedger(winner), replayed: true, circle: await this.summarize(circleId) };
+        }
+      }
+      throw err;
+    }
+
+    this.events.contributionCreated(circleId, { entryId: entry.id, userId, amount: entry.amount.toString() });
+    await this.applyTransitions(circleId, 'contribution');
+    if (currentCycle) await this.maybePayout(circleId, currentCycle.id);
+    return { entry: this.presentLedger(entry), replayed: false, circle: await this.summarize(circleId) };
+  }
+
+  /** Pay out a fully-collected cycle. Safe to call repeatedly: only the
+   *  collecting→payout_completed flip wins, everyone else no-ops. */
+  async maybePayout(circleId: string, cycleId: string): Promise<void> {
+    const cycle = await this.prisma.circleCycle.findUnique({ where: { id: cycleId } });
+    if (!cycle || cycle.status !== 'collecting') return;
+    const collected = await this.cycleCollected(circleId, cycleId);
+    if (collected < Number(cycle.targetPot)) return;
+
+    const claimed = await this.prisma.circleCycle.updateMany({
+      where: { id: cycleId, status: 'collecting' },
+      data: { status: 'payout_completed' },
+    });
+    if (claimed.count === 0) return; // another worker paid it first
+
+    const wallet = await this.wallet.getWallet(cycle.recipientId);
+    await this.prisma.walletTransaction.create({
+      data: {
+        walletId: wallet.id,
+        amount: cycle.targetPot,
+        type: 'circle_payout',
+        relatedCircleId: circleId,
+        relatedCycleId: cycleId,
+        idempotencyKey: `payout:${cycleId}`,
+      },
+    }).catch(async (err: unknown) => {
+      // Retried payout after a crash between claim and credit: already paid.
+      if (typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002') return null;
+      throw err;
+    });
+    this.state.logTransition(circleId, 'collecting', 'payout_completed', `cycle_${cycle.cycleNumber}`);
+    this.events.payoutCompleted(circleId, {
+      cycleId,
+      cycleNumber: cycle.cycleNumber,
+      recipientId: cycle.recipientId,
+      amount: Number(cycle.targetPot).toString(),
+    });
+
+    const next = await this.prisma.circleCycle.findFirst({
+      where: { circleId, status: 'pending' },
+      orderBy: { cycleNumber: 'asc' },
+    });
+    if (next) {
+      const circle = await this.prisma.circle.findUniqueOrThrow({ where: { id: circleId } });
+      const startsAt = new Date();
+      await this.prisma.circleCycle.update({
+        where: { id: next.id },
+        data: { status: 'collecting', startsAt, endsAt: new Date(startsAt.getTime() + circle.cycleLengthDays * 86400000) },
+      });
+      this.events.cycleAdvanced(circleId, { cycleId: next.id, cycleNumber: next.cycleNumber, recipientId: next.recipientId });
+    } else {
+      const from = (await this.prisma.circle.findUniqueOrThrow({ where: { id: circleId } })).status;
+      await this.prisma.circle.update({ where: { id: circleId }, data: { status: 'completed' } });
+      this.state.logTransition(circleId, from, 'completed', 'rotation_complete');
+      this.events.statusChanged(circleId, { from, to: 'completed' });
+    }
+  }
+
+  async cycleCollected(circleId: string, cycleId: string): Promise<number> {
+    const agg = await this.prisma.ledgerEntry.aggregate({
+      where: { circleId, cycleId },
+      _sum: { amount: true },
+    });
+    return Number(agg._sum.amount ?? 0);
+  }
+
+  private presentLedger(e: {
+    id: string; circleId: string; userId: string;
+    amount: { toString(): string }; type: 'contribution' | 'adjustment';
+    idempotencyKey: string; createdAt: Date;
+  }) {
+    return {
+      id: e.id, circleId: e.circleId, userId: e.userId,
+      amount: e.amount.toString(), type: e.type,
+      idempotencyKey: e.idempotencyKey, createdAt: e.createdAt,
+    };
   }
 
   async close(circleId: string, userId: string) {
@@ -165,9 +375,13 @@ export class CirclesService {
     return this.ledger.history(circleId, page, limit);
   }
 
-  /** Background job entry point. No-ops when nothing changed. */
+  /** Used by the background job: transitions + a payout check. No-ops when idle. */
   async recompute(circleId: string): Promise<void> {
     await this.applyTransitions(circleId, 'scheduled_recompute');
+    const current = await this.prisma.circleCycle.findFirst({
+      where: { circleId, status: 'collecting' },
+    });
+    if (current) await this.maybePayout(circleId, current.id);
   }
 
   async openCircleIds(): Promise<string[]> {
@@ -204,28 +418,68 @@ export class CirclesService {
   }
 
   // Every automatic status change goes through here. close() is the only
-  // other place that writes status.
+  // other place that writes status. Rotation circles skip the legacy goal
+  // transition; they complete through payouts, not balances.
   private async applyTransitions(circleId: string, reason: string) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
-    if (!circle || circle.status === 'closed' || circle.status === 'goal_reached') return;
+    if (!circle || circle.status === 'closed' || circle.status === 'completed' || circle.status === 'goal_reached') return;
     const [activeMemberCount, balance] = await Promise.all([
       this.prisma.circleMembership.count({ where: { circleId, status: 'active' } }),
       this.ledger.circleBalance(circleId),
     ]);
+    const isRotation = circle.contributionAmount !== null;
     // Loop at most twice: forming→active→goal_reached can cascade on one contribution.
     let current: CircleStatus = circle.status;
     for (let i = 0; i < 2; i++) {
-      const next = this.state.nextStatus(
-        { id: circleId, status: current, goalAmount: Number(circle.goalAmount) },
-        activeMemberCount,
-        balance,
-      );
+      const next = isRotation && current === 'active'
+        ? null
+        : this.state.nextStatus(
+            { id: circleId, status: current, goalAmount: Number(circle.goalAmount), targetMembers: circle.targetMembers },
+            activeMemberCount,
+            balance,
+          );
       if (!next) break;
       await this.prisma.circle.update({ where: { id: circleId }, data: { status: next } });
       this.state.logTransition(circleId, current, next, reason);
       this.events.statusChanged(circleId, { from: current, to: next });
       current = next;
+      if (current === 'active' && isRotation) await this.lockRotation(circleId);
     }
+  }
+
+  /** Circle just went active: shuffle members into a locked payout order and
+   *  open cycle 1. Fairness you can point at: the draw happens once, here. */
+  private async lockRotation(circleId: string): Promise<void> {
+    const existing = await this.prisma.circleCycle.count({ where: { circleId } });
+    if (existing > 0) return;
+    const circle = await this.prisma.circle.findUniqueOrThrow({ where: { id: circleId } });
+    if (circle.contributionAmount === null) return;
+    const members = await this.prisma.circleMembership.findMany({
+      where: { circleId, status: 'active' },
+      select: { userId: true },
+    });
+    const order = members.map((m) => m.userId);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const perCycle = Number(circle.contributionAmount) * 7 * order.length;
+    await this.prisma.circle.update({ where: { id: circleId }, data: { rotationOrder: order } });
+    const startsAt = new Date();
+    for (let n = 0; n < order.length; n++) {
+      await this.prisma.circleCycle.create({
+        data: {
+          circleId,
+          cycleNumber: n + 1,
+          recipientId: order[n],
+          startsAt: n === 0 ? startsAt : new Date(0),
+          endsAt: n === 0 ? new Date(startsAt.getTime() + circle.cycleLengthDays * 86400000) : new Date(0),
+          targetPot: perCycle,
+          status: n === 0 ? 'collecting' : 'pending',
+        },
+      });
+    }
+    this.state.logTransition(circleId, 'forming', 'active', `rotation_locked_${order.length}_cycles`);
   }
 
   private async requireCircle(circleId: string) {

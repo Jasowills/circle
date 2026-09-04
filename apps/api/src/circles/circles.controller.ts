@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CirclesService } from './circles.service';
 import { ContributeDto, CreateCircleDto, InviteDto } from './circles.dto';
@@ -10,7 +10,19 @@ export class CirclesController {
 
   @Post()
   create(@Req() req: { user: { id: string } }, @Body() dto: CreateCircleDto) {
-    return this.circles.create(req.user.id, dto.name, dto.goalAmount, dto.currency);
+    const hasRotation = dto.contributionAmount !== undefined || dto.targetMembers !== undefined;
+    const goal = dto.goalAmount
+      ?? (hasRotation && dto.contributionAmount && dto.targetMembers
+        ? dto.contributionAmount * 7 * dto.targetMembers
+        : undefined);
+    if (goal === undefined) {
+      throw new BadRequestException('Provide goalAmount, or contributionAmount + targetMembers for a rotation circle');
+    }
+    return this.circles.create(req.user.id, dto.name, goal, dto.currency, {
+      contributionAmount: dto.contributionAmount,
+      targetMembers: dto.targetMembers,
+      cycleLengthDays: dto.cycleLengthDays,
+    });
   }
 
   @Get()
@@ -18,9 +30,19 @@ export class CirclesController {
     return this.circles.listForUser(req.user.id);
   }
 
+  @Get('discover')
+  discover(@Req() req: { user: { id: string } }, @Query('q') q?: string) {
+    return this.circles.discover(req.user.id, q);
+  }
+
   @Get(':id')
   detail(@Req() req: { user: { id: string } }, @Param('id') id: string) {
     return this.circles.detail(id, req.user.id);
+  }
+
+  @Get(':id/cycles')
+  cycles(@Req() req: { user: { id: string } }, @Param('id') id: string) {
+    return this.circles.cycles(id, req.user.id);
   }
 
   @Post(':id/invite')
