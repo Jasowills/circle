@@ -49,7 +49,7 @@ h1, h2, .serif { font-family: var(--serif); font-weight: 650; letter-spacing: -0
 .navlink:hover { background: var(--panel-2); color: var(--text); }
 .navlink.on { background: var(--panel-2); color: var(--text); }
 .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); padding-top: 16px; }
-.main { padding: 40px 56px 96px; max-width: 1480px; margin-left: var(--sidebar); background: var(--main); }
+.main { padding: 40px 56px 96px; margin-left: var(--sidebar); background: var(--main); min-height: 100vh; }
 .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
 .topbar h1 { margin: 0; font-size: 34px; }
 .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
