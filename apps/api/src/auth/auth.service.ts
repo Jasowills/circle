@@ -134,7 +134,9 @@ export class AuthService {
   async loginWithPassword(email: string, password: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
     const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (!user?.passwordHash || !(await compare(password, user.passwordHash))) {
-
+      // Same response for unknown email and wrong password: no account oracle.
+      // Logged (email only, never secrets) so brute force leaves a trail.
+      this.logger.warn(JSON.stringify({ event: 'auth.login_rejected', email: email.trim().toLowerCase() }));
       throw new UnauthorizedException('Email or password is incorrect');
     }
     this.logger.log(JSON.stringify({ event: 'auth.login', userId: user.id }));
