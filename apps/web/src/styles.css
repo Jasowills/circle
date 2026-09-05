@@ -9,6 +9,7 @@
   --border: rgba(250, 250, 250, 0.14);
   --accent: #fafafa;
   --accent-ink: #0a0a0a;
+  --side: #141414;
   --money: #34d399;
   --serif: "Fraunces", Georgia, "Times New Roman", serif;
   --sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -28,6 +29,7 @@
   --border: rgba(10, 10, 10, 0.14);
   --accent: #0a0a0a;
   --accent-ink: #fafafa;
+  --side: #ffffff;
   --money: #0e9f6e;
 }
 
@@ -39,7 +41,7 @@ h1, h2, .serif { font-family: var(--serif); font-weight: 650; letter-spacing: -0
 
 /* App shell: fixed sidebar + fluid main */
 .shell { min-height: 100vh; }
-.sidebar { padding: 28px 20px; display: flex; flex-direction: column; gap: 8px; position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar); overflow-y: auto; background: var(--bg); }
+.sidebar { padding: 28px 20px; display: flex; flex-direction: column; gap: 8px; position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar); overflow-y: auto; background: var(--side); }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: 0.5px; text-decoration: none; margin-bottom: 28px; }
 .navlink { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 4px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px; }
 .navlink:hover { background: var(--panel-2); color: var(--text); }

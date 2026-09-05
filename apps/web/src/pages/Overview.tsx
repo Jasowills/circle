@@ -162,6 +162,28 @@ export function Overview() {
             <RotationPreview />
           </div>
 
+          {top && (
+            <div className="card">
+              <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>Closest to goal</div>
+              <h3 className="serif" style={{ fontSize: 24, margin: '0 0 4px' }}>{top.name}</h3>
+              <div className="progress money">
+                <div style={{ width: `${Math.round(top.progress * 100)}%` }} />
+              </div>
+              <div className="row" style={{ justifyContent: 'space-between' }}>
+                <span className="muted" style={{ fontSize: 13 }}>
+                  {Math.round(top.progress * 100)}% of ₦{Number(top.goalAmount).toLocaleString()}
+                </span>
+                <Link to={`/circles/${top.id}`} style={{ fontSize: 13, fontWeight: 700 }}>Open →</Link>
+              </div>
+            </div>
+          )}
+
+          <div className="card">
+            <h3>Recent contributors</h3>
+            <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>Last 14 days, across your circles.</p>
+            <Donut slices={mix} />
+          </div>
+
           {attention.length > 0 && (
             <div className="card">
               <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -190,28 +212,6 @@ export function Overview() {
               )}
             </div>
           )}
-
-          {top && (
-            <div className="card">
-              <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>Closest to goal</div>
-              <h3 className="serif" style={{ fontSize: 24, margin: '0 0 4px' }}>{top.name}</h3>
-              <div className="progress money">
-                <div style={{ width: `${Math.round(top.progress * 100)}%` }} />
-              </div>
-              <div className="row" style={{ justifyContent: 'space-between' }}>
-                <span className="muted" style={{ fontSize: 13 }}>
-                  {Math.round(top.progress * 100)}% of ₦{Number(top.goalAmount).toLocaleString()}
-                </span>
-                <Link to={`/circles/${top.id}`} style={{ fontSize: 13, fontWeight: 700 }}>Open →</Link>
-              </div>
-            </div>
-          )}
-
-          <div className="card">
-            <h3>Recent contributors</h3>
-            <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>Last 14 days, across your circles.</p>
-            <Donut slices={mix} />
-          </div>
 
           {list.filter((c) => c.status === 'completed' || c.status === 'goal_reached').length > 0 && (
             <div className="card">
