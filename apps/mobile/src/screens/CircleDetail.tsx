@@ -36,6 +36,26 @@ export function CircleDetailScreen({
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [findQ, setFindQ] = useState("");
+
+  const found = useQuery({
+    queryKey: ["find-invite", circleId, findQ],
+    queryFn: () =>
+      api.get<{ id: string; name: string; email: string; avatarUrl: string | null }[]>(
+        `/users/search?q=${encodeURIComponent(findQ)}`
+      ),
+    enabled: findQ.trim().length >= 2,
+  });
+
+  const invite = useMutation({
+    mutationFn: (userId: string) => api.post(`/circles/${circleId}/invite`, { userId }),
+    onSuccess: () => {
+      setMsg("Invite sent.");
+      setFindQ("");
+      qc.invalidateQueries({ queryKey: ["circle", circleId] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
 
   const detail = useQuery({
     queryKey: ["circle", circleId],
@@ -242,37 +262,38 @@ export function CircleDetailScreen({
       )}
 
       <View style={s.card}>
-        <View style={s.row}>
-          <Text style={s.h3}>Contribute</Text>
+        <View style={[s.row, { marginBottom: 12 }]}>
+          <Text style={[s.h3, { marginBottom: 0 }]}>Contribute</Text>
           <Text style={s.muted}>
             Wallet ₦{Number(wallet.data?.balance ?? 0).toLocaleString()}
           </Text>
         </View>
         {d.contributionAmount ? (
-          <Text style={[s.h2, { marginTop: 8 }]}>
-            ₦{Number(d.contributionAmount).toLocaleString()}
-          </Text>
-        ) : null}
-        {d.contributionAmount ? (
-          <Text style={[s.muted, { marginBottom: 4 }]}>
-            Fixed step
-            {d.contributionsPerWeek
-              ? ` · ${d.contributionsPerWeek}× per week`
-              : ""}
-            . This circle takes exactly this amount per tap.
-          </Text>
+          <View style={{ marginBottom: 12 }}>
+            <Text style={s.h2}>
+              ₦{Number(d.contributionAmount).toLocaleString()}
+            </Text>
+            <Text style={[s.muted, { marginTop: 4 }]}>
+              Fixed step
+              {d.contributionsPerWeek
+                ? ` · ${d.contributionsPerWeek}× per week`
+                : ""}
+            </Text>
+          </View>
         ) : (
-          <TextInput
-            style={s.input}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-            placeholder="1000"
-            placeholderTextColor={palette.placeholder}
-          />
+          <View style={{ marginBottom: 12 }}>
+            <TextInput
+              style={[s.input, { marginTop: 0 }]}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="numeric"
+              placeholder="1000"
+              placeholderTextColor={palette.placeholder}
+            />
+          </View>
         )}
         {blocked && nextOpensAt ? (
-          <Text style={[s.muted, { marginBottom: 4 }]}>
+          <Text style={[s.muted, { marginBottom: 12 }]}>
             Next contribution opens{" "}
             {nextOpensAt.toLocaleString(undefined, {
               weekday: "short",
@@ -285,7 +306,7 @@ export function CircleDetailScreen({
           </Text>
         ) : null}
         <TouchableOpacity
-          style={[s.btn, blocked ? { opacity: 0.4 } : null]}
+          style={[s.btn, { marginTop: 0 }, blocked ? { opacity: 0.4 } : null]}
           disabled={contribute.isPending || d.myMembership.status !== "active" || blocked}
           onPress={() =>
             contribute.mutate(d.contributionAmount ?? Number(amount))
@@ -357,6 +378,45 @@ export function CircleDetailScreen({
           </View>
         </View>
       ) : null}
+
+      <View style={s.card}>
+        <Text style={s.h3}>Invite</Text>
+        <Text style={s.muted}>Find them on Circle. Only members can be invited.</Text>
+        <TextInput
+          style={[s.input, { marginTop: 8 }]}
+          value={findQ}
+          onChangeText={setFindQ}
+          placeholder="Search name or email"
+          placeholderTextColor={palette.placeholder}
+          autoCapitalize="none"
+        />
+        {(found.data ?? []).map((p) => {
+          const already = d.members.some((m) => m.userId === p.id);
+          return (
+            <View key={p.id} style={[s.row, { paddingVertical: 8 }]}>
+              <Avatar name={p.name} avatarUrl={p.avatarUrl} size={30} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.text}>{p.name}</Text>
+                <Text style={s.muted}>{p.email}</Text>
+              </View>
+              {already ? (
+                <Text style={s.muted}>In circle</Text>
+              ) : (
+                <TouchableOpacity
+                  style={[s.btnGhost, { marginTop: 0, paddingVertical: 8, paddingHorizontal: 14 }]}
+                  onPress={() => invite.mutate(p.id)}
+                  disabled={invite.isPending}
+                >
+                  <Text style={s.btnGhostText}>Invite</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })}
+        {findQ.trim().length >= 2 && (found.data ?? []).length === 0 && !found.isLoading && (
+          <Text style={[s.muted, { marginTop: 8 }]}>Nobody matches. They need a Circle account first.</Text>
+        )}
+      </View>
 
       <View style={s.card}>
         <Text style={s.h3}>Circle facts</Text>

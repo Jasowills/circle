@@ -69,7 +69,7 @@ export class CirclesController {
 
   @Post(':id/invite')
   invite(@Req() req: { user: { id: string } }, @Param('id') id: string, @Body() dto: InviteDto) {
-    return this.circles.invite(id, req.user.id, dto.email);
+    return this.circles.invite(id, req.user.id, dto);
   }
 
   // Action endpoints return 200 (not 201): they mutate state or replay it,

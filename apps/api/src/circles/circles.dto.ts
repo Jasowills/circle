@@ -52,8 +52,13 @@ export class CreateCircleDto {
 }
 
 export class InviteDto {
+  @IsOptional()
   @IsEmail()
-  email!: string;
+  email?: string;
+
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
 }
 
 export class ContributeDto {

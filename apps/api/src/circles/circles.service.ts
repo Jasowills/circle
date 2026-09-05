@@ -172,14 +172,18 @@ export class CirclesService {
     };
   }
 
-  async invite(circleId: string, inviterId: string, email: string) {
+  async invite(circleId: string, inviterId: string, by: { email?: string; userId?: string }) {
     const circle = await this.requireCircle(circleId);
     await this.requireActiveMember(circleId, inviterId);
     if (circle.status === 'closed') throw new BadRequestException('Circle is closed');
 
-    const invitee = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    const invitee = by.userId
+      ? await this.prisma.user.findUnique({ where: { id: by.userId } })
+      : by.email
+        ? await this.prisma.user.findUnique({ where: { email: by.email.trim().toLowerCase() } })
+        : null;
     if (!invitee) {
-      throw new NotFoundException('No account with that email yet. They need to sign in once first');
+      throw new NotFoundException('No account found. They need to join Circle first');
     }
     const existing = await this.prisma.circleMembership.findUnique({
       where: { circleId_userId: { circleId, userId: invitee.id } },

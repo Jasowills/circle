@@ -11,7 +11,15 @@ export function CircleDetailPage() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [amount, setAmount] = useState('1000');
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [findQ, setFindQ] = useState('');
+  const found = useQuery({
+    queryKey: ['find-invite', id, findQ],
+    queryFn: () =>
+      api.get<{ id: string; name: string; email: string; avatarUrl: string | null }[]>(
+        `/users/search?q=${encodeURIComponent(findQ)}`,
+      ),
+    enabled: findQ.trim().length >= 2,
+  });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const detail = useQuery({
@@ -69,10 +77,11 @@ export function CircleDetailPage() {
   });
 
   const invite = useMutation({
-    mutationFn: () => api.post(`/circles/${id}/invite`, { email: inviteEmail }),
+    mutationFn: (userId: string) => api.post(`/circles/${id}/invite`, { userId }),
     onSuccess: () => {
       setMsg({ ok: true, text: 'Invite sent.' });
-      setInviteEmail('');
+      setFindQ('');
+      qc.invalidateQueries({ queryKey: ['circle', id] });
     },
     onError: (e: Error) => setMsg({ ok: false, text: e.message }),
   });
@@ -153,12 +162,12 @@ export function CircleDetailPage() {
           )}
 
           <div className="card">
-            <div className="row" style={{ justifyContent: 'space-between' }}>
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
               <h3 className="serif" style={{ fontSize: 22, margin: 0 }}>Contribute</h3>
               <span className="muted" style={{ fontSize: 13 }}>Wallet ₦{Number(wallet.data?.balance ?? 0).toLocaleString()}</span>
             </div>
             {d.contributionAmount ? (
-              <p style={{ margin: '10px 0 0', fontSize: 20, fontWeight: 700 }}>
+              <p style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 700 }}>
                 ₦{Number(d.contributionAmount).toLocaleString()}{' '}
                 <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>fixed step, one tap</span>
               </p>
@@ -182,7 +191,6 @@ export function CircleDetailPage() {
                 </button>
               </div>
             </form>
-            <p className="muted" style={{ fontSize: 12 }}>Safe to retry. One tap can never charge you twice.</p>
             {blocked && nextOpensAt ? (
               <p className="muted" style={{ fontSize: 12 }}>
                 Next contribution opens {nextOpensAt.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.
@@ -255,18 +263,33 @@ export function CircleDetailPage() {
 
           <div className="card">
             <h3>Invite</h3>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                invite.mutate();
-              }}
-            >
-              <label>Invite by email</label>
-              <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="friend@example.com" required />
-              <div style={{ marginTop: 12 }}>
-                <button type="submit" className="ghost" disabled={invite.isPending} style={{ width: '100%' }}>Send invite</button>
-              </div>
-            </form>
+            <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>Find them on Circle. Only members can be invited.</p>
+            <label>Search name or email</label>
+            <input value={findQ} onChange={(e) => setFindQ(e.target.value)} placeholder="Adaeze…" />
+            <ul className="feed" style={{ marginTop: 8 }}>
+              {(found.data ?? []).map((p) => {
+                const already = d.members.some((m) => m.userId === p.id);
+                return (
+                  <li key={p.id}>
+                    <div className="row" style={{ justifyContent: 'space-between' }}>
+                      <span>
+                        {p.name} <span className="muted">· {p.email}</span>
+                      </span>
+                      {already ? (
+                        <span className="muted" style={{ fontSize: 12 }}>In circle</span>
+                      ) : (
+                        <button className="ghost" style={{ padding: '6px 14px' }} disabled={invite.isPending} onClick={() => invite.mutate(p.id)}>
+                          Invite
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {findQ.trim().length >= 2 && (found.data ?? []).length === 0 && !found.isLoading && (
+              <p className="muted" style={{ fontSize: 13 }}>Nobody matches. They need a Circle account first.</p>
+            )}
           </div>
 
           {d.myMembership.role === 'creator' && (d.status === 'active' || d.status === 'goal_reached' || d.status === 'completed') && (
