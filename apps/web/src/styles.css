@@ -151,7 +151,7 @@ button:active, .btn:active { transform: scale(0.98); }
 .auth-caption { position: absolute; left: 32px; right: 32px; bottom: 40px; color: #fff; }
 .auth-caption h2 { font-size: 40px; margin: 0 0 8px; }
 .auth-caption p { margin: 0; color: rgba(255,255,255,0.75); font-size: 16px; max-width: 420px; }
-.auth-panel { display: flex; align-items: center; justify-content: center; padding: 40px; }
+.auth-panel { display: flex; align-items: center; justify-content: center; padding: 40px; background: var(--main); }
 .auth-card { width: 100%; max-width: 420px; }
 .dots { display: flex; gap: 8px; margin: 18px 0; }
 .dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--border); cursor: pointer; }
