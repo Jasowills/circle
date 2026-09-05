@@ -87,6 +87,7 @@ export function CircleDetailScreen({
       socket.on("member.joined", refresh);
       socket.on("circle.status_changed", refresh);
       socket.on("payout.completed", refresh);
+      socket.on("payout.pending", refresh);
       socket.on("cycle.advanced", refresh);
     });
     return () => {
