@@ -14,18 +14,28 @@ interface Person {
 export function PeoplePage() {
   const nav = useNavigate();
   const [q, setQ] = useState('');
-  const { data, isLoading } = useQuery({
+  const directory = useQuery({
+    queryKey: ['people-all'],
+    queryFn: () => api.get<Person[]>('/users'),
+    enabled: q.trim().length < 2,
+  });
+  const found = useQuery({
     queryKey: ['people', q],
     queryFn: () => api.get<Person[]>(`/users/search?q=${encodeURIComponent(q)}`),
     enabled: q.trim().length >= 2,
   });
+
+  const searching = q.trim().length >= 2;
+  const list = searching ? (found.data ?? []) : (directory.data ?? []);
 
   return (
     <>
       <div className="topbar">
         <div>
           <h1>People</h1>
-          <p className="muted" style={{ margin: '6px 0 0' }}>Anyone on Circle. Open a profile to invite them to your circles.</p>
+          <p className="muted" style={{ margin: '6px 0 0' }}>
+            {searching ? `${list.length} result${list.length === 1 ? '' : 's'}` : 'Everyone on Circle. Open a profile to invite them to your circles.'}
+          </p>
         </div>
       </div>
 
@@ -35,44 +45,38 @@ export function PeoplePage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name or email (min 2 letters)"
+            placeholder="Search name or email"
             style={{ border: 'none', paddingLeft: 0 }}
           />
         </div>
       </div>
 
-      <div className="card" style={{ padding: 8 }}>
-        <ul className="feed">
-          {(data ?? []).map((p) => (
-            <li
-              key={p.id}
-              onClick={() => nav(`/users/${p.id}`)}
-              onKeyDown={(e) => e.key === 'Enter' && nav(`/users/${p.id}`)}
-              tabIndex={0}
-              role="button"
-              style={{ cursor: 'pointer', padding: '12px' }}
-            >
-              <div className="row" style={{ gap: 12, flexWrap: 'nowrap' }}>
-                {p.avatarUrl ? (
-                  <img className="avatar" src={p.avatarUrl} alt="" />
-                ) : (
-                  <span className="avatar-fallback">{p.name.charAt(0).toUpperCase()}</span>
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div className="muted" style={{ fontSize: 13 }}>{p.email}</div>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {q.trim().length >= 2 && !isLoading && (data ?? []).length === 0 && (
-          <p className="muted" style={{ padding: 12 }}>Nobody matches. Try another spelling.</p>
-        )}
-        {q.trim().length < 2 && (
-          <p className="muted" style={{ padding: 12 }}>Type at least 2 letters to search the platform.</p>
-        )}
+      <div className="people-grid">
+        {list.map((p) => (
+          <div
+            key={p.id}
+            className="card person-card"
+            onClick={() => nav(`/users/${p.id}`)}
+            onKeyDown={(e) => e.key === 'Enter' && nav(`/users/${p.id}`)}
+            tabIndex={0}
+            role="button"
+          >
+            {p.avatarUrl ? (
+              <img className="avatar" src={p.avatarUrl} alt="" style={{ width: 52, height: 52 }} />
+            ) : (
+              <span className="avatar-fallback" style={{ width: 52, height: 52, fontSize: 20 }}>
+                {p.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <div style={{ fontWeight: 700, marginTop: 12 }}>{p.name}</div>
+            <div className="muted" style={{ fontSize: 13 }}>{p.email}</div>
+            <span className="muted" style={{ fontSize: 13, fontWeight: 700, marginTop: 12 }}>View profile →</span>
+          </div>
+        ))}
       </div>
+      {searching && !found.isLoading && list.length === 0 && (
+        <p className="muted">Nobody matches. Try another spelling.</p>
+      )}
     </>
   );
 }

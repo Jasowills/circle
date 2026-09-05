@@ -18,6 +18,17 @@ const publicSelect = { id: true, name: true, email: true, avatarUrl: true };
 export class UsersController {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Full directory (web lists everyone; mobile searches). Capped. */
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  list() {
+    return this.prisma.user.findMany({
+      select: publicSelect,
+      orderBy: { name: 'asc' },
+      take: 50,
+    });
+  }
+
   /** Platform search for inviting and discovering people. */
   @Get('search')
   @UseGuards(JwtAuthGuard)

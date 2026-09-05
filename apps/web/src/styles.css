@@ -123,6 +123,9 @@ button:active, .btn:active { transform: scale(0.98); }
 .table tr:last-child td { border-bottom: none; }
 .table tbody tr { cursor: pointer; }
 .table tbody tr:hover { background: var(--panel-2); }
+.people-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.person-card { display: flex; flex-direction: column; align-items: flex-start; cursor: pointer; margin-bottom: 0; transition: transform 0.15s ease; }
+.person-card:hover { transform: translateY(-2px); }
 .table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .table .bar-cell { min-width: 160px; }
 
