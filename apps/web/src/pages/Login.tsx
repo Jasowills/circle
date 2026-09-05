@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { api } from '../api';
 import { Loading } from '../Loading';
 import { googleLoginUrl, useAuth } from '../auth';
@@ -27,7 +27,7 @@ const SLIDES = [
 ];
 
 export function Login() {
-  const { signIn } = useAuth();
+  const { user, signIn } = useAuth();
   const nav = useNavigate();
   const [slide, setSlide] = useState(0);
   const [mode, setMode] = useState<'join' | 'signin'>('join');
@@ -62,6 +62,10 @@ export function Login() {
       setErr(e instanceof Error ? e.message : 'Login failed');
     }
   };
+
+  // Already holding a session (e.g. bounced here before auth resolved):
+  // go home instead of showing the form.
+  if (user) return <Navigate to="/" replace />;
 
   return (
     <div className="auth-split">

@@ -19,11 +19,18 @@ export function setToken(t: string | null) {
 }
 
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}), ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
-    credentials: 'include',
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}), ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
+      credentials: 'include',
+    });
+  } catch {
+    // Server unreachable (restart, sleep, network). This is NOT an auth
+    // failure: never wipe the session or redirect on it.
+    throw new Error('Cannot reach the server. It may be restarting.');
+  }
   // A failed refresh used to wipe the access token, which permanently bricked
   // the session: later reloads skipped refresh (no token) even with a valid
   // cookie sitting right there. So: always attempt the cookie refresh on a
@@ -32,8 +39,10 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     trace(path, '-> 401, hadToken=', !!getToken());
     try {
       await silentRefresh();
-      trace(path, '-> recovered via refresh');
-      return request<T>(path, init, false);
+      trace(path, '-> recovered via refresh, replaying');
+      const replayed = await request<T>(path, init, false);
+      trace(path, '-> replay ok');
+      return replayed;
     } catch (e) {
       trace(path, '-> refresh failed, redirecting to /login:', e instanceof Error ? e.message : e);
       setToken(null);

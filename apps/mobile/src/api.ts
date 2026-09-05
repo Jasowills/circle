@@ -40,7 +40,9 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     try {
       await silentRefresh();
       return request<T>(path, init, false);
-    } catch {
+    } catch (e) {
+      // Unreachable server is not a logout: keep tokens for the retry.
+      if (e instanceof Error && e.message.startsWith('Could not reach')) throw e;
       await clearTokens();
       throw new Error('Session expired. Please sign in again');
     }

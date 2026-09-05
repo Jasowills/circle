@@ -14,9 +14,29 @@ import { CirclesList } from './pages/CirclesList';
 import { CircleDetailPage } from './pages/CircleDetail';
 
 function Shell() {
-  const { user, signOut } = useAuth();
+  const { user, offline, ready, retry, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const nav = useNavigate();
+  if (offline) {
+    return (
+      <div className="wrap">
+        <div className="card" style={{ maxWidth: 480, margin: '48px auto', textAlign: 'center' }}>
+          <h2 className="serif">Can't reach the server</h2>
+          <p className="muted">Your session is safe. Start the API and try again — no need to sign in.</p>
+          <button onClick={retry}>Retry</button>
+        </div>
+      </div>
+    );
+  }
+  if (!ready) {
+    return (
+      <div className="wrap">
+        <div className="spinner-wrap" role="status" aria-live="polite" style={{ justifyContent: 'center', padding: '96px 0' }}>
+          <span className="spinner" />
+        </div>
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   return (
     <div className="shell">

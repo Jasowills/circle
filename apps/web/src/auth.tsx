@@ -11,29 +11,48 @@ interface User {
 interface AuthCtx {
   user: User | null;
   token: string | null;
+  offline: boolean;
+  ready: boolean;
   signIn: (accessToken: string, refreshToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
+  retry: () => void;
 }
 
-const Ctx = createContext<AuthCtx>({ user: null, token: null, signIn: async () => {}, signOut: async () => {} });
+const Ctx = createContext<AuthCtx>({ user: null, token: null, offline: false, ready: false, signIn: async () => {}, signOut: async () => {}, retry: () => {} });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTok] = useState<string | null>(() => getToken());
   const [user, setUser] = useState<User | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  // Until the first session check settles, nobody may redirect. Otherwise a
+  // reload bounces to /login on first paint and strands valid sessions there.
+  const [ready, setReady] = useState(() => !getToken());
 
   useEffect(() => {
     if (!token) {
       setUser(null);
+      setReady(true);
       return;
     }
+    setOffline(false);
     api
       .get<User>('/me')
-      .then(setUser)
-      .catch(() => {
-        setToken(null);
-        setTok(null);
+      .then((me) => {
+        setUser(me);
+        setReady(true);
+      })
+      .catch((e: Error) => {
+        if (e.message === 'Session expired') {
+          setToken(null);
+          setTok(null);
+          setReady(true);
+        } else {
+          // Network failure, not logout. Keep the token; offer a retry.
+          setOffline(true);
+        }
       });
-  }, [token]);
+  }, [token, attempt]);
 
   const signIn = useCallback(async (accessToken: string) => {
     setToken(accessToken);
@@ -53,7 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  return <Ctx.Provider value={{ user, token, signIn, signOut }}>{children}</Ctx.Provider>;
+  // Re-run the session check (used by the offline screen's Retry).
+  const retry = useCallback(() => {
+    setOffline(false);
+    setAttempt((a) => a + 1);
+  }, []);
+
+  return <Ctx.Provider value={{ user, token, offline, ready, signIn, signOut, retry }}>{children}</Ctx.Provider>;
 }
 
 export const useAuth = () => useContext(Ctx);
