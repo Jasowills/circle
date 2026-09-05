@@ -36,42 +36,45 @@ export function AreaChart({ data, height = 220 }: { data: Point[]; height?: numb
   );
 }
 
-/** Donut of shares. Largest slice goes emerald, rest fade through mono. */
+/** Contribution pie. Each contributor gets their own color; legend carries both. */
+const PIE_COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#fb7185', '#a78bfa', '#e7e5e4'];
+
 export function Donut({ slices }: { slices: { label: string; value: number }[] }) {
   const total = slices.reduce((s, x) => s + x.value, 0);
   if (!total) return <p className="muted" style={{ fontSize: 13 }}>No contributions yet.</p>;
-  const R = 54;
-  const C = 2 * Math.PI * R;
+  const R = 62;
+  const CX = 70;
+  const CY = 70;
   const ordered = [...slices].sort((a, b) => b.value - a.value);
-  let acc = 0;
+  let angle = -Math.PI / 2;
+  const wedges = ordered.map((s, i) => {
+    const frac = s.value / total;
+    const a0 = angle;
+    const a1 = angle + frac * Math.PI * 2;
+    angle = a1;
+    const large = frac > 0.5 ? 1 : 0;
+    const x0 = CX + R * Math.cos(a0);
+    const y0 = CY + R * Math.sin(a0);
+    const x1 = CX + R * Math.cos(a1);
+    const y1 = CY + R * Math.sin(a1);
+    return {
+      label: s.label,
+      frac,
+      color: PIE_COLORS[i % PIE_COLORS.length],
+      d: `M ${CX} ${CY} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${R} ${R} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} Z`,
+    };
+  });
   return (
     <div className="row" style={{ alignItems: 'center', gap: 20, flexWrap: 'nowrap' }}>
-      <svg width={140} height={140} viewBox="0 0 140 140" role="img" aria-label="Contribution mix">
-        <circle cx={70} cy={70} r={R} fill="none" strokeWidth={16} className="chart-track" />
-        {ordered.map((s, i) => {
-          const frac = s.value / total;
-          const el = (
-            <circle
-              key={s.label}
-              cx={70}
-              cy={70}
-              r={R}
-              fill="none"
-              strokeWidth={16}
-              strokeDasharray={`${(frac * C).toFixed(1)} ${C.toFixed(1)}`}
-              strokeDashoffset={(-acc * C).toFixed(1)}
-              transform="rotate(-90 70 70)"
-              className={i === 0 ? 'chart-dot' : 'chart-ink'}
-              opacity={i === 0 ? 1 : Math.max(0.25, 0.7 - i * 0.15)}
-            />
-          );
-          acc += frac;
-          return el;
-        })}
+      <svg width={150} height={150} viewBox="0 0 140 140" role="img" aria-label="Contribution pie chart">
+        {wedges.map((w) => (
+          <path key={w.label} d={w.d} fill={w.color} stroke="var(--bg)" strokeWidth={2} />
+        ))}
       </svg>
       <ul className="feed" style={{ flex: 1 }}>
-        {ordered.slice(0, 5).map((s) => (
+        {ordered.slice(0, 6).map((s, i) => (
           <li key={s.label}>
+            <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i % PIE_COLORS.length], marginRight: 8 }} />
             {s.label} <span className="muted">· {Math.round((s.value / total) * 100)}%</span>
           </li>
         ))}
