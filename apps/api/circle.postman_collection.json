@@ -1,302 +1,110 @@
 {
   "info": {
-    "name": "Circle \u2014 demo flow",
-    "description": "End-to-end demo for the video: auth \u2192 circle \u2192 invite/accept \u2192 contribute \u2192 IDEMPOTENCY REPLAY \u2192 goal_reached \u2192 ledger audit. Run top to bottom against a local API (http://localhost:3000). Requests 7 and 8 are the money shot: same idempotencyKey twice, second returns replayed:true with no duplicate.",
+    "name": "Circle — demo flow (v2 Ajo)",
+    "description": "End-to-end demo for the video: auth → wallet → rotation circle → lock → contribute → IDEMPOTENCY REPLAY → payout → cadence + overdraw guards. Run top to bottom against a local API (http://localhost:3000). Requests 12 and 13 are the money shot: same idempotencyKey twice, second returns replayed:true with no duplicate debit.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:3000"
-    },
-    {
-      "key": "tokenA",
-      "value": ""
-    },
-    {
-      "key": "tokenB",
-      "value": ""
-    },
-    {
-      "key": "circleId",
-      "value": ""
-    },
-    {
-      "key": "idemKey",
-      "value": "11111111-2222-4333-8444-555555555555"
-    }
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "tokenA", "value": "" },
+    { "key": "tokenB", "value": "" },
+    { "key": "circleId", "value": "" },
+    { "key": "idemKey", "value": "11111111-2222-4333-8444-555555555555" }
   ],
   "item": [
     {
-      "name": "1. Dev login \u2014 Ada (creator)",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/auth/dev-login",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"email\":\"ada@example.com\",\"name\":\"Ada\"}"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 + tokens', () => { const j = pm.response.json(); pm.expect(j.accessToken).to.be.a('string'); pm.collectionVariables.set('tokenA', j.accessToken); });"
-            ]
-          }
-        }
-      ]
+      "name": "1. Dev login — Ada (creator)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/auth/dev-login", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\":\"ada@circle.com\",\"name\":\"Adaeze\"}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 + tokens', () => { const j = pm.response.json(); pm.expect(j.accessToken).to.be.a('string'); pm.collectionVariables.set('tokenA', j.accessToken); });"] } }]
     },
     {
-      "name": "2. Dev login \u2014 Bayo (member)",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/auth/dev-login",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"email\":\"bayo@example.com\",\"name\":\"Bayo\"}"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('200 + tokens', () => { const j = pm.response.json(); pm.collectionVariables.set('tokenB', j.accessToken); });"
-            ]
-          }
-        }
-      ]
+      "name": "2. Dev login — James (member)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/auth/dev-login", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"email\":\"james@circle.com\",\"name\":\"James\"}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('200 + tokens', () => { const j = pm.response.json(); pm.collectionVariables.set('tokenB', j.accessToken); });"] } }]
     },
     {
-      "name": "3. Create circle (status: forming)",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/circles",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenA}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"name\":\"Mortgage deposit\",\"goalAmount\":1000}"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('forming', () => { const j = pm.response.json(); pm.expect(j.status).to.eql('forming'); pm.collectionVariables.set('circleId', j.id); });"
-            ]
-          }
-        }
-      ]
+      "name": "3. Me (auth check)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/me", "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('profile', () => { const j = pm.response.json(); pm.expect(j.email).to.eql('ada@circle.com'); });"] } }]
     },
     {
-      "name": "4. Invite Bayo by email",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/circles/{{circleId}}/invite",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenA}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"email\":\"bayo@example.com\"}"
-        }
-      }
+      "name": "4. Wallet (derived balance + demo fund)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/wallet", "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('derived balance', () => { const j = pm.response.json(); pm.expect(j.balance).to.be.a('number'); pm.expect(j.balance).to.be.above(0); });"] } }]
     },
     {
-      "name": "5. Bayo accepts (circle flips forming \u2192 active)",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/circles/{{circleId}}/accept",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenB}}"
-          }
-        ]
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('active', () => pm.expect(pm.response.json().status).to.eql('active'));"
-            ]
-          }
-        }
-      ]
+      "name": "5. Fund 100k (fresh key)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/wallet/fund", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenA}}" }], "body": { "mode": "raw", "raw": "{\"amount\":100000,\"idempotencyKey\":\"{{$guid}}\"}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('fresh credit', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(false); pm.expect(j.balance).to.be.a('number'); });"] } }]
     },
     {
-      "name": "6. List my circles (derived balances)",
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/circles",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenA}}"
-          }
-        ]
-      }
+      "name": "6. Create rotation circle (10k daily, 2 members, 2x/week)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenA}}" }], "body": { "mode": "raw", "raw": "{\"name\":\"Video Ajo\",\"contributionAmount\":10000,\"targetMembers\":2,\"contributionsPerWeek\":2,\"cycleLengthDays\":7}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('forming + pot math', () => { const j = pm.response.json(); pm.expect(j.status).to.eql('forming'); pm.expect(j.goalAmount).to.eql(140000); pm.collectionVariables.set('circleId', j.id); });"] } }]
     },
     {
-      "name": "7. Contribute 400 (first attempt \u2014 replayed:false)",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/circles/{{circleId}}/contribute",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenA}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"amount\":400,\"idempotencyKey\":\"{{idemKey}}\"}"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('fresh write', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(false); pm.expect(Number(j.circle.balance)).to.eql(400); });"
-            ]
-          }
-        }
-      ]
+      "name": "7. Invite James",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles/{{circleId}}/invite", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenA}}" }], "body": { "mode": "raw", "raw": "{\"email\":\"james@circle.com\"}" } }
     },
     {
-      "name": "8. SAME request again (replay \u2014 replayed:true, balance unchanged)",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/circles/{{circleId}}/contribute",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenA}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"amount\":400,\"idempotencyKey\":\"{{idemKey}}\"}"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('no duplicate', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(true); pm.expect(Number(j.circle.balance)).to.eql(400); });"
-            ]
-          }
-        }
-      ]
+      "name": "8. James accepts (stays forming — creator locks)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles/{{circleId}}/accept", "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('still forming', () => pm.expect(pm.response.json().status).to.eql('forming'));"] } }]
     },
     {
-      "name": "9. Bayo contributes 600 (crosses goal \u2192 goal_reached)",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/circles/{{circleId}}/contribute",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenB}}"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"amount\":600,\"idempotencyKey\":\"{{$guid}}\"}"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('goal_reached', () => pm.expect(pm.response.json().circle.status).to.eql('goal_reached'));"
-            ]
-          }
-        }
-      ]
+      "name": "9. Creator activates (locks rotation)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles/{{circleId}}/activate", "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('active', () => pm.expect(pm.response.json().status).to.eql('active'));"] } }]
     },
     {
-      "name": "10. Circle detail (balance, progress, members)",
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/circles/{{circleId}}",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenA}}"
-          }
-        ]
-      }
+      "name": "10. Rotation schedule (locked order, cycle 1 collecting)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/circles/{{circleId}}/cycles", "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('2 cycles, first collecting, 140k pot', () => { const j = pm.response.json(); pm.expect(j).to.have.lengthOf(2); pm.expect(j[0].status).to.eql('collecting'); pm.expect(j[0].targetPot).to.eql(140000); });"] } }]
     },
     {
-      "name": "11. Ledger history (append-only audit trail)",
-      "request": {
-        "method": "GET",
-        "url": "{{baseUrl}}/circles/{{circleId}}/ledger?limit=20",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{tokenA}}"
-          }
-        ]
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('exactly 2 entries despite 3 writes', () => pm.expect(pm.response.json().total).to.eql(2));"
-            ]
-          }
-        }
-      ]
+      "name": "11. Contribute 140k — fills the pot",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles/{{circleId}}/contribute", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenA}}" }], "body": { "mode": "raw", "raw": "{\"amount\":140000,\"idempotencyKey\":\"{{idemKey}}\"}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('fresh write', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(false); });"] } }]
+    },
+    {
+      "name": "12. SAME request again (replay — no duplicate)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles/{{circleId}}/contribute", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenA}}" }], "body": { "mode": "raw", "raw": "{\"amount\":140000,\"idempotencyKey\":\"{{idemKey}}\"}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('replayed, same entry', () => { const j = pm.response.json(); pm.expect(j.replayed).to.eql(true); });"] } }]
+    },
+    {
+      "name": "13. Wallet audit (exactly one 140k debit)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/wallet/transactions?limit=100", "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('one debit despite two writes', () => { const j = pm.response.json(); const hits = j.data.filter(t => t.amount === '-140000' || t.amount === -140000); pm.expect(hits.length).to.eql(1); });"] } }]
+    },
+    {
+      "name": "14. Cycle paid out, cycle 2 collecting",
+      "request": { "method": "GET", "url": "{{baseUrl}}/circles/{{circleId}}/cycles", "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('payout advanced', () => { const j = pm.response.json(); pm.expect(j[0].status).to.eql('payout_completed'); pm.expect(j[1].status).to.eql('collecting'); });"] } }]
+    },
+    {
+      "name": "15. New cycle, new dues (allowed)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles/{{circleId}}/contribute", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenA}}" }], "body": { "mode": "raw", "raw": "{\"amount\":10000,\"idempotencyKey\":\"{{$guid}}\"}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('fresh cycle accepts', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+    },
+    {
+      "name": "16. Immediate re-tap (cadence guard)",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles/{{circleId}}/contribute", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenA}}" }], "body": { "mode": "raw", "raw": "{\"amount\":10000,\"idempotencyKey\":\"{{$guid}}\"}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('400 with countdown', () => { pm.expect(pm.response.code).to.eql(400); pm.expect(pm.response.json().message).to.match(/Next contribution opens in/); });"] } }]
+    },
+    {
+      "name": "17. Overdraw rejected",
+      "request": { "method": "POST", "url": "{{baseUrl}}/circles/{{circleId}}/contribute", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenB}}" }], "body": { "mode": "raw", "raw": "{\"amount\":100000000,\"idempotencyKey\":\"{{$guid}}\"}" } },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('400 insufficient', () => { pm.expect(pm.response.code).to.eql(400); pm.expect(pm.response.json().message).to.match(/Insufficient/); });"] } }]
+    },
+    {
+      "name": "18. Discover open circles",
+      "request": { "method": "GET", "url": "{{baseUrl}}/circles/discover", "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('array', () => pm.expect(pm.response.json()).to.be.an('array'));"] } }]
+    },
+    {
+      "name": "19. Notifications timeline",
+      "request": { "method": "GET", "url": "{{baseUrl}}/notifications", "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }] },
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('array', () => pm.expect(pm.response.json()).to.be.an('array'));"] } }]
     }
   ]
 }
