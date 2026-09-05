@@ -1,10 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-/**
- * Lets the domain service emit room broadcasts without importing the
- * gateway. The gateway plugs itself in via register(); with nothing
- * registered, broadcasting is a logged no-op.
- */
 @Injectable()
 export class CircleEvents {
   private readonly logger = new Logger('WS');

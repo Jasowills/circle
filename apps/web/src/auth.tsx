@@ -26,8 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [offline, setOffline] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  // Until the first session check settles, nobody may redirect. Otherwise a
-  // reload bounces to /login on first paint and strands valid sessions there.
+
   const [ready, setReady] = useState(() => !getToken());
 
   useEffect(() => {
@@ -49,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setTok(null);
           setReady(true);
         } else {
-          // Network failure, not logout. Keep the token; offer a retry.
+
           setOffline(true);
         }
       });
@@ -73,7 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  // Re-run the session check (used by the offline screen's Retry).
   const retry = useCallback(() => {
     setOffline(false);
     setAttempt((a) => a + 1);

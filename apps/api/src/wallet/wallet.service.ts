@@ -3,18 +3,12 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export const DEMO_FUND_AMOUNT = 100000;
 
-/**
- * One wallet per user. Balance is derived (SUM of transactions), same rule
- * as the circle ledger. The wallet is also append-only: money moves by
- * writing rows, never by editing a balance column (there isn't one).
- */
 @Injectable()
 export class WalletService {
   private readonly logger = new Logger('Wallet');
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Fetch the wallet, creating it with a demo top-up the first time. */
   async getWallet(userId: string) {
     let wallet = await this.prisma.wallet.findUnique({ where: { userId } });
     if (!wallet) {
@@ -30,7 +24,7 @@ export class WalletService {
         });
         this.logger.log(JSON.stringify({ event: 'wallet.demo_funded', userId }));
       } catch (err: unknown) {
-        // Lost a creation race: someone else made it first. Use theirs.
+
         if (typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002') {
           wallet = await this.prisma.wallet.findUniqueOrThrow({ where: { userId } });
         } else throw err;
@@ -47,7 +41,6 @@ export class WalletService {
     return Number(agg._sum.amount ?? 0);
   }
 
-  /** Demo top-up. Idempotent per key. Labeled demo: no real rail here. */
   async fund(userId: string, amount: number, idempotencyKey: string) {
     if (!Number.isFinite(amount) || amount < 100) {
       throw new BadRequestException('Top-up must be at least ₦100');
@@ -75,7 +68,6 @@ export class WalletService {
     }
   }
 
-  /** Demo withdrawal. Same idempotency discipline; never overdraws. */
   async withdraw(userId: string, amount: number, idempotencyKey: string) {
     if (!Number.isFinite(amount) || amount < 100) {
       throw new BadRequestException('Withdrawal must be at least ₦100');

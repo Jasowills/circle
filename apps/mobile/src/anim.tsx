@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Text, View } from 'react-native';
 import { useTheme } from './theme';
 
-/** Themed loading state: spinner + label, centered with breathing room. */
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   const { s, palette } = useTheme();
   return (
@@ -13,7 +12,6 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
   );
 }
 
-/** True when the OS asks for reduced motion. Animations render end-state. */
 export function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -24,7 +22,6 @@ export function useReducedMotion(): boolean {
   return reduced;
 }
 
-/** Fade-and-rise entrance. Stagger siblings with delay. */
 export function FadeIn({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: object }) {
   const reduce = useReducedMotion();
   const v = useRef(new Animated.Value(0)).current;
@@ -45,7 +42,6 @@ export function FadeIn({ children, delay = 0, style }: { children: React.ReactNo
   );
 }
 
-/** Progress fill that glides to the target instead of jumping. */
 export function AnimatedBar({ progress, height = 12 }: { progress: number; height?: number }) {
   const { s } = useTheme();
   const reduce = useReducedMotion();
@@ -64,7 +60,6 @@ export function AnimatedBar({ progress, height = 12 }: { progress: number; heigh
   );
 }
 
-/** Money fills glide in green. Same motion as AnimatedBar, emerald fill. */
 export function AnimatedMoneyBar({ progress }: { progress: number }) {
   const { s, palette } = useTheme();
   const reduce = useReducedMotion();
@@ -83,7 +78,6 @@ export function AnimatedMoneyBar({ progress }: { progress: number }) {
   );
 }
 
-/** Breathing live dot for "live" headers. Static when reduced motion is on. */
 export function PulseDot({ size = 8 }: { size?: number }) {
   const { palette } = useTheme();
   const reduce = useReducedMotion();

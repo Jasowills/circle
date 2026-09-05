@@ -4,10 +4,6 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
-/**
- * Production refuses to boot on placeholder config. Dev stays frictionless:
- * empty Google creds fall back to 'missing-*' and dev-login covers local runs.
- */
 function requireProdEnv(): void {
   if (process.env.NODE_ENV !== 'production') return;
   const access = process.env.JWT_ACCESS_SECRET ?? '';

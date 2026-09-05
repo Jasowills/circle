@@ -7,11 +7,6 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../prisma/prisma.service';
 
-/**
- * Full-chain regression: auth → circle → invite/accept → idempotent ledger
- * writes → state transitions → live WebSocket event → audit history.
- * Needs Postgres up (docker compose up -d postgres) and ALLOW_DEV_LOGIN=true.
- */
 describe('Circle e2e (demo flow)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -39,7 +34,7 @@ describe('Circle e2e (demo flow)', () => {
   });
 
   afterAll(async () => {
-    // FK-safe cleanup of everything this run created.
+
     const users = await prisma.user.findMany({
       where: { email: { in: [emailA, emailB, emailPwd, `e2e-x-${stamp}@example.com`, `e2e-y-${stamp}@example.com`, `e2e-z-${stamp}@example.com`, `e2e-p-${stamp}@example.com`, `e2e-q-${stamp}@example.com`, `e2e-s-${stamp}@example.com`, `e2e-t-${stamp}@example.com`, `e2e-m-${stamp}@example.com`, `e2e-n-${stamp}@example.com`, `e2e-o-${stamp}@example.com`] } },
       select: { id: true },
@@ -161,7 +156,6 @@ describe('Circle e2e (demo flow)', () => {
       expect(first.status).toBe(200);
       expect(first.body.replayed).toBe(false);
 
-      // The money shot: identical retry → same entry, no duplicate, no event.
       const retry = await request(baseUrl)
         .post(`/circles/${circleId}/contribute`)
         .set('Authorization', `Bearer ${tokenA}`)
@@ -197,11 +191,11 @@ describe('Circle e2e (demo flow)', () => {
       .send({ email: `e2e-y-${stamp}@example.com` });
     const acc = await request(baseUrl).post(`/circles/${rc}/accept`)
       .set('Authorization', `Bearer ${tY}`);
-    expect(acc.body.status).toBe('forming'); // rotation waits on the creator
+    expect(acc.body.status).toBe('forming');
     const early = await request(baseUrl).post(`/circles/${rc}/contribute`)
       .set('Authorization', `Bearer ${tX}`)
       .send({ amount: 1000, idempotencyKey: randomUUID() });
-    expect(early.status).toBe(200); // contributions accrue while forming
+    expect(early.status).toBe(200);
     const act = await request(baseUrl).post(`/circles/${rc}/activate`)
       .set('Authorization', `Bearer ${tX}`);
     expect(act.body.status).toBe('active');
@@ -216,7 +210,7 @@ describe('Circle e2e (demo flow)', () => {
 
     const w0 = await request(baseUrl).get('/wallet')
       .set('Authorization', `Bearer ${tX}`);
-    expect(w0.body.balance).toBe(99000); // 100k demo fund minus the forming contribution above
+    expect(w0.body.balance).toBe(99000);
 
     const k1 = randomUUID();
     const pay1 = await request(baseUrl).post(`/circles/${rc}/contribute`)
@@ -225,14 +219,13 @@ describe('Circle e2e (demo flow)', () => {
     expect(pay1.status).toBe(200);
     const w1 = await request(baseUrl).get('/wallet')
       .set('Authorization', `Bearer ${tX}`);
-    expect(w1.body.balance).toBe(89000); // debited
+    expect(w1.body.balance).toBe(89000);
 
     const pay2 = await request(baseUrl).post(`/circles/${rc}/contribute`)
       .set('Authorization', `Bearer ${tY}`)
       .send({ amount: 4000, idempotencyKey: randomUUID() });
     expect(pay2.status).toBe(200);
 
-    // Pot full (14000): cycle 1 paid out, cycle 2 collecting.
     const sched2 = await request(baseUrl).get(`/circles/${rc}/cycles`)
       .set('Authorization', `Bearer ${tX}`);
     expect(sched2.body[0].status).toBe('payout_completed');
@@ -242,7 +235,6 @@ describe('Circle e2e (demo flow)', () => {
       .set('Authorization', `Bearer ${recipToken}`);
     expect(Number(wRecip.body.balance)).toBeGreaterThan(89000);
 
-    // Fill cycle 2 → rotation completes.
     await request(baseUrl).post(`/circles/${rc}/contribute`)
       .set('Authorization', `Bearer ${tX}`)
       .send({ amount: 14000, idempotencyKey: randomUUID() });
@@ -363,14 +355,14 @@ describe('Circle e2e (demo flow)', () => {
       .send({ email: `e2e-n-${stamp}@example.com` });
     await request(baseUrl).post(`/circles/${rc}/accept`)
       .set('Authorization', `Bearer ${tN}`);
-    // Non-creator cannot activate; solo circle cannot activate.
+
     const noAuth = await request(baseUrl).post(`/circles/${rc}/activate`)
       .set('Authorization', `Bearer ${tN}`);
     expect(noAuth.status).toBe(403);
     const act = await request(baseUrl).post(`/circles/${rc}/activate`)
       .set('Authorization', `Bearer ${tM}`);
     expect(act.body.status).toBe('active');
-    // Late invite + late accept + late join all refuse.
+
     const lateInv = await request(baseUrl).post(`/circles/${rc}/invite`)
       .set('Authorization', `Bearer ${tM}`)
       .send({ email: `e2e-o-${stamp}@example.com` });
@@ -410,6 +402,6 @@ describe('Circle e2e (demo flow)', () => {
     const ledger = await request(baseUrl)
       .get(`/circles/${circleId}/ledger?limit=20`)
       .set('Authorization', `Bearer ${tokenA}`);
-    expect(ledger.body.total).toBe(2); // 3 writes, 1 replay → 2 rows
+    expect(ledger.body.total).toBe(2);
   });
 });

@@ -12,13 +12,6 @@ import type { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
 import { CircleEvents } from './circle-events';
 
-/**
- * Live rooms: clients join `circle:<id>` and receive
- * contribution.created / member.joined / circle.status_changed.
- *
- * Auth: client sends { circleId, token } with the `join` message; the gateway
- * verifies the JWT AND circle membership before admitting the socket.
- */
 @WebSocketGateway({ cors: { origin: true, credentials: true } })
 export class CircleGateway implements OnGatewayInit {
   private readonly logger = new Logger('WSGateway');

@@ -33,14 +33,13 @@ export class AuthService {
     private readonly prisma: PrismaService,
   ) {}
 
-  /** Find-or-create a user from a verified Google profile, then issue our own JWT pair. */
   async loginWithGoogle(profile: GoogleProfile): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
     let user = await this.prisma.user.findUnique({ where: { googleId: profile.googleId } });
     let isNew = false;
     if (!user) {
       const byEmail = await this.prisma.user.findUnique({ where: { email: profile.email } });
       if (byEmail) {
-        // Same person, new Google link. Attach it instead of duplicating.
+
         user = await this.prisma.user.update({
           where: { id: byEmail.id },
           data: {
@@ -68,14 +67,8 @@ export class AuthService {
     return { userId: user.id, tokens, isNew };
   }
 
-  /**
-   * Mobile sign-in. The app completes Google natively and hands us the ID
-   * token; we check the signature and audience here, then issue our own pair.
-   */
   async loginWithIdToken(idToken: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
-    // One GCP project holds three OAuth clients (web, iOS, Android). A token
-    // minted for the mobile app carries that platform's client ID as its
-    // audience, so every client ID has to be accepted here.
+
     const audiences = [
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_IOS_CLIENT_ID,
@@ -100,7 +93,6 @@ export class AuthService {
     });
   }
 
-  /** Dev-only login (ALLOW_DEV_LOGIN=true): no Google round-trip, for local demo/tests. */
   async devLogin(email: string, name?: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
     if (process.env.ALLOW_DEV_LOGIN !== 'true') {
       throw new UnauthorizedException('Dev login is disabled');
@@ -123,7 +115,6 @@ export class AuthService {
     return { userId: user.id, tokens, isNew };
   }
 
-  /** Email + password signup. Passwords are bcrypt-hashed; Google users have none. */
   async signup(email: string, name: string, password: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
     const normalized = email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email: normalized } });
@@ -143,7 +134,7 @@ export class AuthService {
   async loginWithPassword(email: string, password: string): Promise<{ userId: string; tokens: TokenPair; isNew: boolean }> {
     const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (!user?.passwordHash || !(await compare(password, user.passwordHash))) {
-      // Same response for unknown email and wrong password: no account oracle.
+
       throw new UnauthorizedException('Email or password is incorrect');
     }
     this.logger.log(JSON.stringify({ event: 'auth.login', userId: user.id }));
@@ -166,7 +157,7 @@ export class AuthService {
       }));
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
-    // Rotate: revoke the used token, issue a fresh pair (limits replay window).
+
     await this.prisma.refreshToken.update({
       where: { id: stored.id },
       data: { revokedAt: new Date() },
@@ -192,7 +183,7 @@ export class AuthService {
       { sub: userId },
       { secret: this.accessSecret(), expiresIn: this.accessTtl },
     );
-    const refreshToken = randomBytes(48).toString('hex'); // opaque, hashed at rest
+    const refreshToken = randomBytes(48).toString('hex');
     const expiresAt = new Date(Date.now() + this.refreshDays * 24 * 3600 * 1000);
     await this.prisma.refreshToken.create({
       data: { userId, tokenHash: hashToken(refreshToken), expiresAt },

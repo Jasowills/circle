@@ -1,4 +1,4 @@
-/** Monochrome stroke icons. currentColor throughout; no fills, no hues. */
+
 function base(props: { size?: number; children: React.ReactNode }) {
   const s = props.size ?? 18;
   return (

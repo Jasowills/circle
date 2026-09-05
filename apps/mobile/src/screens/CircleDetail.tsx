@@ -71,8 +71,6 @@ export function CircleDetailScreen({
     queryFn: () => api.get<WalletOverview>("/wallet"),
   });
 
-  // Live room keeps every number on this screen fresh. There is no feed UI
-  // on purpose: updates land directly in balances, pots and schedules.
   useEffect(() => {
     let socket: ReturnType<typeof io> | null = null;
     let alive = true;
@@ -572,7 +570,6 @@ export function CircleDetailScreen({
   );
 }
 
-/** Creator-only rotation setup while forming: draw mode + manual order. */
 export function RotationEditor({
   members,
   currentMode,

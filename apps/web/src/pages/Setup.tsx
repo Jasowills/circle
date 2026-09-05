@@ -4,7 +4,6 @@ import { api, getToken } from '../api';
 import { useAuth } from '../auth';
 import { Logo } from '../Logo';
 
-/** First-run profile setup for brand-new accounts (server reports isNew on login). */
 export function Setup() {
   const { user, signIn } = useAuth();
   const nav = useNavigate();

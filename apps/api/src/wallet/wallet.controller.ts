@@ -20,7 +20,6 @@ class FundDto {
 export class WalletController {
   constructor(private readonly wallet: WalletService) {}
 
-  /** Balance + recent transactions. Touching this endpoint funds new wallets once. */
   @Get()
   async overview(@Req() req: { user: { id: string } }) {
     const w = await this.wallet.getWallet(req.user.id);
@@ -37,7 +36,6 @@ export class WalletController {
     return this.wallet.history(w.id, Number(page), Number(limit));
   }
 
-  /** Demo-only instant credit. A real provider (Paystack etc.) plugs in here. */
   @Post('fund')
   async fund(@Req() req: { user: { id: string } }, @Body() dto: FundDto) {
     const result = await this.wallet.fund(req.user.id, dto.amount, dto.idempotencyKey);
@@ -45,7 +43,6 @@ export class WalletController {
     return { ...result, balance: await this.wallet.balance(w.id) };
   }
 
-  /** Demo withdrawal. Same idempotency discipline; never overdraws. */
   @Post('withdraw')
   async withdraw(@Req() req: { user: { id: string } }, @Body() dto: FundDto) {
     const result = await this.wallet.withdraw(req.user.id, dto.amount, dto.idempotencyKey);

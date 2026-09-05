@@ -20,10 +20,6 @@ export interface Notice {
 
 const DAY = 86400000;
 
-/**
- * Everything here is derived from existing rows. No notification table, no
- * push infra: the same facts that drive the app, reframed as a timeline.
- */
 @Injectable()
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -37,7 +33,7 @@ export class NotificationsService {
     const myCircleIds = memberships.map((m) => m.circleId);
 
     for (const m of memberships) {
-      // Pending invites.
+
       if (m.status === 'invited') {
         out.push({
           id: `invite-${m.circleId}`,
@@ -48,7 +44,7 @@ export class NotificationsService {
           at: m.invitedAt,
         });
       }
-      // Finished circles I belong to.
+
       if (m.status === 'active' && (m.circle.status === 'completed' || m.circle.status === 'goal_reached')) {
         const lastCycle = await this.prisma.circleCycle.findFirst({
           where: { circleId: m.circleId, status: 'payout_completed' },
@@ -66,7 +62,7 @@ export class NotificationsService {
     }
 
     if (myCircleIds.length) {
-      // Fresh faces in my circles (last 14 days, not me).
+
       const joins = await this.prisma.circleMembership.findMany({
         where: {
           circleId: { in: myCircleIds },
@@ -89,13 +85,11 @@ export class NotificationsService {
         });
       }
 
-      // Collecting cycles in my circles: dues, collections, countdowns.
       const collecting = await this.prisma.circleCycle.findMany({
         where: { circleId: { in: myCircleIds }, status: 'collecting' },
         include: { circle: { select: { id: true, name: true } } },
       });
 
-      // Won pots waiting for my tap.
       const waiting = await this.prisma.circleCycle.findMany({
         where: { circleId: { in: myCircleIds }, status: 'payout_completed', recipientId: userId, payoutClaimedAt: null },
         include: { circle: { select: { id: true, name: true } } },
@@ -148,7 +142,6 @@ export class NotificationsService {
         }
       }
 
-      // Money that already landed in my wallet.
       const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
       if (wallet) {
         const payouts = await this.prisma.walletTransaction.findMany({

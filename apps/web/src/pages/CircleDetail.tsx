@@ -40,8 +40,6 @@ export function CircleDetailPage() {
     queryFn: () => api.get<WalletOverview>('/wallet'),
   });
 
-  // Live room keeps every number on screen fresh. Updates land directly in
-  // balances, pots and schedules; there is deliberately no feed UI.
   useEffect(() => {
     const token = getToken();
     if (!token || !id) return;

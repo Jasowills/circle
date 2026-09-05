@@ -72,8 +72,6 @@ export class CirclesController {
     return this.circles.invite(id, req.user.id, dto);
   }
 
-  // Action endpoints return 200 (not 201): they mutate state or replay it,
-  // they don't always create a resource. create/invite keep the default 201.
   @Post(':id/accept')
   @HttpCode(200)
   accept(@Req() req: { user: { id: string } }, @Param('id') id: string) {
@@ -92,19 +90,16 @@ export class CirclesController {
     return this.circles.join(id, req.user.id);
   }
 
-  /** Autopilot switches (auto-contribute, auto-collect) for my membership. */
   @Patch(':id/auto')
   auto(@Req() req: { user: { id: string } }, @Param('id') id: string, @Body() dto: AutoDto) {
     return this.circles.setAuto(id, req.user.id, dto);
   }
 
-  /** Creator sets the draw mode + manual order while the circle is forming. */
   @Patch(':id/rotation')
   rotation(@Req() req: { user: { id: string } }, @Param('id') id: string, @Body() dto: RotationDto) {
     return this.circles.setRotation(id, req.user.id, dto.mode, dto.order ?? []);
   }
 
-  /** Collect a won pot that waited for a manual tap. */
   @Post(':id/cycles/:cycleId/claim')
   @HttpCode(200)
   claim(

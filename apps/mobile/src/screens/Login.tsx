@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
-import { API_URL, api } from '../api';
+import { api } from '../api';
 import { useAuth } from '../auth';
 import { useTheme } from '../theme';
 import { Logo } from '../Logo';
@@ -37,8 +37,7 @@ export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  // In Expo Go there is no Google button, so the dev form is the sign-in.
-  // Everywhere else it stays tucked behind "Trouble signing in?".
+
   const [showDev, setShowDev] = useState(Constants.appOwnership === 'expo');
   const [err, setErr] = useState<string | null>(null);
   const pager = useRef<ScrollView>(null);
@@ -51,8 +50,6 @@ export function LoginScreen() {
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
   });
 
-  // Native Google sign-in only works in a dev/production build. Inside Expo Go
-  // the redirect goes somewhere Google never approved, so dev sign-in covers Go.
   const inExpoGo = Constants.appOwnership === 'expo';
 
   useEffect(() => {
@@ -73,18 +70,15 @@ export function LoginScreen() {
 
   const devLogin = async () => {
     setErr(null);
-    console.log(`[Circle] ${mode} attempt email=${email} api=${API_URL}`);
     try {
       const path = mode === 'join' ? '/auth/signup' : '/auth/login';
       const body = mode === 'join'
         ? { email, name: name || undefined, password }
         : { email, password };
       const t = await api.postPublic<{ accessToken: string; refreshToken: string; isNew: boolean }>(path, body);
-      console.log(`[Circle] ${mode} ok isNew=${t.isNew}`);
       await signIn(t.accessToken, t.refreshToken, t.isNew);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Login failed';
-      console.log(`[Circle] ${mode} FAILED: ${msg}`);
       setErr(msg);
     }
   };

@@ -5,7 +5,6 @@ import { useAuth } from '../auth';
 import { useTheme } from '../theme';
 import { Logo } from '../Logo';
 
-/** First-run profile setup for brand-new accounts. */
 export function SetupScreen() {
   const { user, signIn, completeSetup } = useAuth();
   const { s, palette } = useTheme();

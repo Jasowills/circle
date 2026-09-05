@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, type CircleSummary, type LedgerPage } from '../api';
 import { Loading } from '../Loading';
-import { money, statusLabel, timeAgo } from '../format';
+import { money, timeAgo } from '../format';
 import { useAuth } from '../auth';
 import { I } from '../icons';
 import { AreaChart, Donut, CycleTimeline } from '../charts';
@@ -72,8 +72,6 @@ export function Overview() {
   const members = list.reduce((s, c) => s + c.activeMemberCount, 0);
   const avg = list.length ? list.reduce((s, c) => s + c.progress, 0) / list.length : 0;
 
-  // Cumulative curve over the trailing 14 days (ledgers are sampled per
-  // circle, so this is a recent window, not all-time history).
   const cutoff = Date.now() - 14 * 86400000;
   const byDay = new Map<string, number>();
   for (const a of activity.data ?? []) {
@@ -85,7 +83,6 @@ export function Overview() {
   let run = 0;
   const curve = days.map((d) => ({ t: +new Date(d), v: (run += byDay.get(d) ?? 0) }));
 
-  // Contribution mix across my circles (top contributors first).
   const byWho = new Map<string, number>();
   for (const a of activity.data ?? []) byWho.set(a.userName, (byWho.get(a.userName) ?? 0) + a.amount);
   const mix = [...byWho.entries()].map(([label, value]) => ({ label, value }));
@@ -242,7 +239,6 @@ export function Overview() {
 }
 
 function RotationPreview() {
-  const nav = useNavigate();
   const { data: circles } = useQuery({
     queryKey: ['circles'],
     queryFn: () => api.get<CircleSummary[]>('/circles'),

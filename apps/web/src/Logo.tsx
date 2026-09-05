@@ -1,4 +1,4 @@
-/** Interlocking rings mark. Monochrome by design: it inherits the theme text color. */
+
 export function Logo({ size = 26 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">

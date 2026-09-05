@@ -1,9 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
 
-/**
- * Same API as web, but tokens live in expo-secure-store instead of a cookie
- * jar. The refresh token goes in the request body.
- */
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3000';
 
 const ACCESS_KEY = 'circle.accessToken';
@@ -34,14 +30,13 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
-  // A wiped access token must not brick a session while a valid refresh
-  // token still exists: always attempt refresh on a 401.
+
   if (res.status === 401 && retry) {
     try {
       await silentRefresh();
       return request<T>(path, init, false);
     } catch (e) {
-      // Unreachable server is not a logout: keep tokens for the retry.
+
       if (e instanceof Error && e.message.startsWith('Could not reach')) throw e;
       await clearTokens();
       throw new Error('Session expired. Please sign in again');
@@ -56,7 +51,6 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 
 let inflight: Promise<void> | null = null;
 
-/** One shared refresh: parallel 401s must not stampede rotation. */
 async function silentRefresh(): Promise<void> {
   if (!inflight) {
     inflight = (async () => {
@@ -77,7 +71,6 @@ async function silentRefresh(): Promise<void> {
   return inflight;
 }
 
-/** fetch that gives up after TIMEOUT_MS instead of hanging forever. */
 async function timedFetch(url: string, init: RequestInit): Promise<Response> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 15000);
@@ -105,7 +98,6 @@ export const api = {
     if (!res.ok) {
       const b = await res.json().catch(() => ({}));
       const msg = (b as { message?: string }).message ?? `Request failed (${res.status})`;
-      console.log(`[Circle] POST ${p} -> ${res.status}: ${msg}`);
       throw new Error(msg);
     }
     return (await res.json()) as T;

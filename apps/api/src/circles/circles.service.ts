@@ -47,7 +47,6 @@ export class CirclesService {
     return this.detail(circle.id, creatorId);
   }
 
-  /** Public forming circles the viewer hasn't joined. Searchable by name. */
   async discover(viewerId: string, q?: string) {
     const circles = await this.prisma.circle.findMany({
       where: {
@@ -70,7 +69,6 @@ export class CirclesService {
     );
   }
 
-  /** Rotation schedule with per-cycle collection progress + recipient names. */
   async cycles(circleId: string, viewerId: string) {
     await this.requireCircle(circleId);
     await this.requireMember(circleId, viewerId);
@@ -220,9 +218,6 @@ export class CirclesService {
     return this.detail(circleId, userId);
   }
 
-  /** Creator locks the circle: roster frozen, order drawn, cycle 1 opens.
-   *  After this, nobody joins mid-rotation — early and late members would
-   *  otherwise collect different pots for the same buy-in. */
   async activate(circleId: string, userId: string) {
     const circle = await this.requireCircle(circleId);
     const mine = await this.prisma.circleMembership.findUnique({
@@ -241,7 +236,6 @@ export class CirclesService {
     return this.detail(circleId, userId);
   }
 
-  /** Open enrollment for public (forming) circles found via discover. */
   async join(circleId: string, userId: string) {
     const circle = await this.requireCircle(circleId);
     const existing = await this.prisma.circleMembership.findUnique({
@@ -270,7 +264,7 @@ export class CirclesService {
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException('Amount must be a positive number');
     }
-    // Rotation circles take fixed steps (one or more days at once).
+
     if (circle.contributionAmount !== null) {
       const step = Number(circle.contributionAmount);
       if (amount % step !== 0) {
@@ -279,7 +273,6 @@ export class CirclesService {
     }
     const key = idempotencyKey.trim();
 
-    // Sequential replay first: the common retry path never touches the wallet.
     const replay = await this.prisma.ledgerEntry.findUnique({
       where: { circleId_userId_idempotencyKey: { circleId, userId, idempotencyKey: key } },
     });
@@ -292,9 +285,6 @@ export class CirclesService {
       where: { circleId, status: 'collecting' },
     });
 
-    // Scheduled circles pace contributions: at most N per week, evenly spaced.
-    // Measured within the collecting cycle when there is one, otherwise
-    // across the whole circle (forming circles have no cycles yet).
     if (circle.contributionsPerWeek) {
       const gap = (circle.cycleLengthDays * 86400000) / circle.contributionsPerWeek;
       const last = await this.prisma.ledgerEntry.findFirst({
@@ -310,8 +300,6 @@ export class CirclesService {
       }
     }
 
-    // One Postgres transaction: wallet debit + ledger credit, or neither.
-    // A race on the key rolls everything back and falls through to replay.
     let entry;
     try {
       entry = await this.prisma.$transaction(async (tx) => {
@@ -354,7 +342,6 @@ export class CirclesService {
     return { entry: this.presentLedger(entry), replayed: false, circle: await this.summarize(circleId) };
   }
 
-  /** When this member may next contribute (ISO), or null when unrestricted. */
   async nextContributionAt(circleId: string, userId: string): Promise<string | null> {
     const circle = await this.requireCircle(circleId);
     if (circle.contributionAmount === null || !circle.contributionsPerWeek) return null;
@@ -370,7 +357,6 @@ export class CirclesService {
     return new Date(last.createdAt.getTime() + gap).toISOString();
   }
 
-  /** Autopilot switches for my own membership. Contribute needs fixed steps. */
   async setAuto(circleId: string, userId: string, opts: { contribute?: boolean; collect?: boolean }) {
     const m = await this.requireActiveMember(circleId, userId);
     const circle = await this.requireCircle(circleId);
@@ -386,8 +372,6 @@ export class CirclesService {
     return { autoContribute: updated.autoContribute, autoCollect: updated.autoCollect };
   }
 
-  /** Background runner: contribute the fixed step for everyone due. Skips the
-   *  broke quietly (insufficient balance) — the countdown tells them instead. */
   async runAutoContributions(): Promise<number> {
     const due = await this.prisma.circleMembership.findMany({
       where: { status: 'active', autoContribute: true },
@@ -403,7 +387,7 @@ export class CirclesService {
         await this.contribute(m.circleId, m.userId, Number(m.circle.contributionAmount), randomUUID());
         paid++;
       } catch {
-        continue; // usually insufficient balance; countdown + wallet say so
+        continue;
       }
     }
     return paid;
@@ -427,7 +411,7 @@ export class CirclesService {
       where: { id: cycleId, status: 'collecting' },
       data: { status: 'payout_completed' },
     });
-    if (claimed.count === 0) return; // another worker paid it first
+    if (claimed.count === 0) return;
 
     const recipientMembership = await this.prisma.circleMembership.findUnique({
       where: { circleId_userId: { circleId, userId: cycle.recipientId } },
@@ -446,7 +430,6 @@ export class CirclesService {
     return this.advanceCycle(circleId);
   }
 
-  /** Credit a won pot. Idempotent per cycle: collecting twice pays once. */
   private async creditPayout(circleId: string, cycle: { id: string; cycleNumber: number; recipientId: string; targetPot: { toString(): string } }): Promise<boolean> {
     const wallet = await this.wallet.getWallet(cycle.recipientId);
     try {
@@ -461,7 +444,7 @@ export class CirclesService {
         },
       });
     } catch (err: unknown) {
-      // Already paid (retry after a crash, or auto-collect switched on late).
+
       if (typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002') return false;
       throw err;
     }
@@ -479,7 +462,6 @@ export class CirclesService {
     return true;
   }
 
-  /** Manual collect for a won-but-waiting pot. */
   async claimCycle(circleId: string, cycleId: string, userId: string) {
     const cycle = await this.prisma.circleCycle.findUnique({ where: { id: cycleId } });
     if (!cycle || cycle.circleId !== circleId) throw new NotFoundException('Cycle not found');
@@ -554,11 +536,10 @@ export class CirclesService {
 
   async ledgerHistory(circleId: string, userId: string, page: number, limit: number) {
     await this.requireCircle(circleId);
-    await this.requireMember(circleId, userId); // any membership incl. invited can audit
+    await this.requireMember(circleId, userId);
     return this.ledger.history(circleId, page, limit);
   }
 
-  /** Used by the background job: transitions + a payout check. No-ops when idle. */
   async recompute(circleId: string): Promise<void> {
     await this.applyTransitions(circleId, 'scheduled_recompute');
     const current = await this.prisma.circleCycle.findFirst({
@@ -601,9 +582,6 @@ export class CirclesService {
     };
   }
 
-  // Every automatic status change goes through here. close() is the only
-  // other place that writes status. Rotation circles skip the legacy goal
-  // transition; they complete through payouts, not balances.
   private async applyTransitions(circleId: string, reason: string) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
     if (!circle || circle.status === 'closed' || circle.status === 'completed' || circle.status === 'goal_reached') return;
@@ -612,7 +590,7 @@ export class CirclesService {
       this.ledger.circleBalance(circleId),
     ]);
     const isRotation = circle.contributionAmount !== null;
-    // Loop at most twice: forming→active→goal_reached can cascade on one contribution.
+
     let current: CircleStatus = circle.status;
     for (let i = 0; i < 2; i++) {
       const next = isRotation && current === 'active'
@@ -637,8 +615,6 @@ export class CirclesService {
     }
   }
 
-  /** Creator sets the draw mode and, for manual mode, the exact payout order.
-   *  Only while forming; the order locks the moment the circle fills. */
   async setRotation(circleId: string, userId: string, mode: string, order: string[]) {
     const circle = await this.requireCircle(circleId);
     const mine = await this.prisma.circleMembership.findUnique({

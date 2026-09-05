@@ -39,8 +39,6 @@ export function Login() {
   const s = SLIDES[slide];
   const [paused, setPaused] = useState(false);
 
-  // Auto-advance the visual until the auth slide. Words live on the right;
-  // the left is pure imagery.
   useEffect(() => {
     if (paused || last) return;
     const t = setTimeout(() => setSlide(slide + 1), 5000);
@@ -63,8 +61,6 @@ export function Login() {
     }
   };
 
-  // Already holding a session (e.g. bounced here before auth resolved):
-  // go home instead of showing the form.
   if (user) return <Navigate to="/" replace />;
 
   return (

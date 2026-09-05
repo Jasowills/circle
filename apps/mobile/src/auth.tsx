@@ -11,7 +11,7 @@ interface User {
 interface AuthCtx {
   user: User | null;
   ready: boolean;
-  /** True when the account was just created and still needs a display name. */
+
   setupRequired: boolean;
   signIn: (accessToken: string, refreshToken: string, isNew: boolean) => Promise<void>;
   reloadUser: () => Promise<void>;

@@ -3,11 +3,6 @@ import { Cron } from '@nestjs/schedule';
 import { CirclesModule } from '../circles/circles.module';
 import { CirclesService } from '../circles/circles.service';
 
-/**
- * Every couple of minutes, re-check open circles for transitions the
- * write path may have missed. Contributions already transition
- * synchronously, so this is a backstop, not the main mechanism.
- */
 @Injectable()
 export class ProgressService {
   private readonly logger = new Logger('ProgressJob');

@@ -18,7 +18,6 @@ const publicSelect = { id: true, name: true, email: true, avatarUrl: true };
 export class UsersController {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Full directory (web lists everyone; mobile searches). Capped. */
   @Get()
   @UseGuards(JwtAuthGuard)
   list() {
@@ -29,7 +28,6 @@ export class UsersController {
     });
   }
 
-  /** Platform search for inviting and discovering people. */
   @Get('search')
   @UseGuards(JwtAuthGuard)
   search(@Query('q') q = '') {
@@ -47,7 +45,6 @@ export class UsersController {
     });
   }
 
-  /** Public profile: who they are, circles you share, circles you can invite them to. */
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   async profile(@Req() req: { user: { id: string } }, @Param('id') id: string) {
@@ -86,7 +83,6 @@ export class MeController {
     return { id, email, name, avatarUrl, createdAt };
   }
 
-  /** First-run profile completion (and later renames). */
   @Patch()
   @UseGuards(JwtAuthGuard)
   async updateMe(@Req() req: { user: { id: string } }, @Body() dto: UpdateNameDto) {

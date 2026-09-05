@@ -45,8 +45,7 @@ function refreshCookieOptions(): { httpOnly: boolean; secure: boolean; sameSite:
   return {
     httpOnly: true,
     secure: isProd, // httpOnly + secure on web per spec; plain http locally
-    // Deployed web (Static Web Apps) and API (App Service) are cross-origin:
-    // fetch() will not attach a SameSite=Lax cookie, so prod needs None.
+
     sameSite: isProd ? 'none' : 'lax',
     path: '/auth',
     maxAge: Number(process.env.JWT_REFRESH_TTL_DAYS ?? 30) * 24 * 3600 * 1000,
@@ -57,14 +56,12 @@ function refreshCookieOptions(): { httpOnly: boolean; secure: boolean; sameSite:
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  /** Step 1: redirect the user into Google. */
   @Get('google')
   @UseGuards(AuthGuard('google'))
   googleLogin(): void {
     // Passport handles the redirect.
   }
 
-  /** Step 2: Google calls back here; we issue our JWT pair. */
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleCallback(@Req() req: Request, @Res() res: Response, @Query('format') format?: string) {
@@ -74,7 +71,7 @@ export class AuthController {
     }
     const { tokens, isNew } = await this.auth.loginWithGoogle(profile);
     res.cookie('refresh_token', tokens.refreshToken, refreshCookieOptions());
-    // Mobile (Expo) can't easily read the redirect chain's cookies → allow ?format=json.
+
     if (format === 'json') {
       return res.json({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew });
     }
@@ -82,7 +79,6 @@ export class AuthController {
     return res.redirect(`${webAppUrl}/auth/callback?accessToken=${tokens.accessToken}&isNew=${isNew ? '1' : '0'}`);
   }
 
-  /** Dev-only login for local demo/tests without Google credentials. */
   @Post('dev-login')
   async devLogin(@Body() dto: DevLoginDto, @Res({ passthrough: true }) res: Response) {
     const { tokens, isNew } = await this.auth.devLogin(dto.email, dto.name);
@@ -90,7 +86,6 @@ export class AuthController {
     return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
   }
 
-  /** Email + password signup (bcrypt-hashed). */
   @Post('signup')
   async signup(@Body() dto: SignupDto, @Res({ passthrough: true }) res: Response) {
     const { tokens, isNew } = await this.auth.signup(dto.email, dto.name, dto.password);
@@ -98,7 +93,6 @@ export class AuthController {
     return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
   }
 
-  /** Email + password login. */
   @Post('login')
   async login(@Body() dto: PasswordDto, @Res({ passthrough: true }) res: Response) {
     const { tokens, isNew } = await this.auth.loginWithPassword(dto.email, dto.password);
@@ -106,7 +100,6 @@ export class AuthController {
     return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
   }
 
-  /** Mobile Google sign-in: verify the Expo-supplied ID token, issue our JWT pair. */
   @Post('google/id-token')
   async googleIdToken(@Body() body: { idToken?: string }, @Res({ passthrough: true }) res: Response) {
     if (!body?.idToken) throw new UnauthorizedException('Missing ID token');
@@ -115,7 +108,6 @@ export class AuthController {
     return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, isNew };
   }
 
-  /** Rotate the refresh token (reads httpOnly cookie first, falls back to body for mobile). */
   @Post('refresh')
   async refresh(@Req() req: Request, @Body() body: { refreshToken?: string }, @Res({ passthrough: true }) res: Response) {
     const incoming: string | undefined = req.cookies?.refresh_token ?? body?.refreshToken;
@@ -125,7 +117,6 @@ export class AuthController {
     return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
   }
 
-  /** Invalidate the refresh token server-side (access token simply expires). */
   @Post('logout')
   async logout(@Req() req: Request, @Body() body: { refreshToken?: string }, @Res({ passthrough: true }) res: Response) {
     await this.auth.logout(req.cookies?.refresh_token ?? body?.refreshToken);

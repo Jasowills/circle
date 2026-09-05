@@ -1,4 +1,4 @@
-/** User-facing formatting. Statuses read as titles, never raw enum slugs. */
+
 export function statusLabel(status: string): string {
   return status
     .split('_')
@@ -6,7 +6,6 @@ export function statusLabel(status: string): string {
     .join(' ');
 }
 
-/** Whole days until a date. Negative means overdue. */
 export function daysUntil(iso: string): number {
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
 }

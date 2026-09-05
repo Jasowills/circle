@@ -1,11 +1,10 @@
-/** Hand-rolled SVG charts. Monochrome + money accent, no dependencies. */
+
 
 export interface Point {
   t: number;
   v: number;
 }
 
-/** Cumulative area chart with min/max labels. */
 export function AreaChart({ data, height = 220 }: { data: Point[]; height?: number }) {
   const W = 640;
   const H = height;
@@ -36,7 +35,6 @@ export function AreaChart({ data, height = 220 }: { data: Point[]; height?: numb
   );
 }
 
-/** Contribution pie. Each contributor gets their own color; legend carries both. */
 const PIE_COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#fb7185', '#a78bfa', '#e7e5e4'];
 
 export function Donut({ slices }: { slices: { label: string; value: number }[] }) {
@@ -83,7 +81,6 @@ export function Donut({ slices }: { slices: { label: string; value: number }[] }
   );
 }
 
-/** Rotation stepper: paid / collecting / upcoming. */
 export function CycleTimeline({ cycles }: { cycles: { cycleNumber: number; recipientName: string; status: string }[] }) {
   if (!cycles.length) return null;
   return (

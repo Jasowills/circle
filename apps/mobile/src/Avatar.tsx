@@ -1,7 +1,6 @@
 import { Image, Text, View } from 'react-native';
 import { useTheme } from './theme';
 
-/** Photo when available, initials on a theme disc otherwise. */
 export function Avatar({ name, avatarUrl, size = 34 }: { name: string; avatarUrl?: string | null; size?: number }) {
   const { palette } = useTheme();
   if (avatarUrl) {

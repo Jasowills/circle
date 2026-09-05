@@ -1,7 +1,6 @@
 import { View } from 'react-native';
 import { useTheme } from './theme';
 
-/** Interlocking rings mark. Follows the theme text color unless pinned (e.g. white over photos). */
 export function Logo({ size = 26, color }: { size?: number; color?: string }) {
   const { palette } = useTheme();
   const ring = {
