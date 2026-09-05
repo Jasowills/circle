@@ -101,6 +101,17 @@ export function CircleDetailPage() {
     onError: (e: Error) => setMsg({ ok: false, text: e.message }),
   });
 
+  const activate = useMutation({
+    mutationFn: () => api.post(`/circles/${id}/activate`),
+    onSuccess: () => {
+      setMsg({ ok: true, text: 'Circle locked. Rotation drawn, cycle 1 is collecting.' });
+      qc.invalidateQueries({ queryKey: ['circle', id] });
+      qc.invalidateQueries({ queryKey: ['cycles', id] });
+      qc.invalidateQueries({ queryKey: ['circles'] });
+    },
+    onError: (e: Error) => setMsg({ ok: false, text: e.message }),
+  });
+
   const d = detail.data;
   const nextOpensAt = d?.myNextContributionAt ? new Date(d.myNextContributionAt) : null;
   const blocked = !!nextOpensAt && nextOpensAt > new Date();
@@ -135,6 +146,20 @@ export function CircleDetailPage() {
         <div className="card">
           <p style={{ marginTop: 0 }}>You've been invited to this circle. Accept to start contributing.</p>
           <button onClick={() => accept.mutate()} disabled={accept.isPending}>Accept invite</button>
+        </div>
+      )}
+
+      {d.myMembership.role === 'creator' && d.status === 'forming' && (
+        <div className="card">
+          <h3 className="serif" style={{ fontSize: 22, margin: '0 0 6px' }}>Lock the circle</h3>
+          <p className="muted" style={{ margin: '0 0 12px' }}>
+            {d.members.filter((m) => m.status === 'active').length}
+            {d.targetMembers ? ` of ${d.targetMembers}` : ''} seats filled.
+            Activating freezes the roster, draws the order, and opens cycle 1. Nobody joins after.
+          </p>
+          <button onClick={() => activate.mutate()} disabled={activate.isPending}>
+            {activate.isPending ? 'Locking…' : 'Activate circle'}
+          </button>
         </div>
       )}
 
@@ -261,6 +286,7 @@ export function CircleDetailPage() {
             <AutopilotCard circleId={id} contribute={d.myAutopilot.contribute} collect={d.myAutopilot.collect} />
           ) : null}
 
+          {d.status === 'forming' && (
           <div className="card">
             <h3>Invite</h3>
             <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>Find them on Circle. Only members can be invited.</p>
@@ -291,6 +317,7 @@ export function CircleDetailPage() {
               <p className="muted" style={{ fontSize: 13 }}>Nobody matches. They need a Circle account first.</p>
             )}
           </div>
+          )}
 
           {d.myMembership.role === 'creator' && (d.status === 'active' || d.status === 'goal_reached' || d.status === 'completed') && (
             <div className="card">

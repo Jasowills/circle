@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { useTheme } from '../theme';
@@ -7,11 +8,23 @@ import { I } from '../icons';
 export function SettingsPage() {
   const { user, signIn } = useAuth();
   const { theme, toggle } = useTheme();
+  const qc = useQueryClient();
   const [name, setName] = useState(user?.name ?? '');
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [demoMsg, setDemoMsg] = useState<string | null>(null);
 
   if (!user) return null;
+
+  const quickFund = useMutation({
+    mutationFn: (amt: number) =>
+      api.post('/wallet/fund', { amount: amt, idempotencyKey: crypto.randomUUID() }),
+    onSuccess: () => {
+      setDemoMsg('Demo credit landed in your wallet.');
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    },
+    onError: (e: Error) => setDemoMsg(e.message),
+  });
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +100,23 @@ export function SettingsPage() {
             <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
               <span className="muted">Ledger</span><span>Append-only</span>
             </div>
+            <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+              <span className="muted">Member since</span>
+              <span>{new Date(user.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+            </div>
+          </div>
+
+          <div className="card">
+            <h3>Demo tools</h3>
+            <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>Instant test credit. Real payments plug in here later.</p>
+            <div className="row" style={{ gap: 8 }}>
+              {[50000, 100000, 250000].map((q) => (
+                <button key={q} className="ghost" style={{ flex: 1 }} disabled={quickFund.isPending} onClick={() => quickFund.mutate(q)}>
+                  ₦{(q / 1000).toString()}k
+                </button>
+              ))}
+            </div>
+            {demoMsg && <p className="muted" style={{ fontSize: 13 }}>{demoMsg}</p>}
           </div>
 
           <div className="card">

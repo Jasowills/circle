@@ -13,6 +13,11 @@ describe('CircleStateService (spec §7)', () => {
     expect(svc.nextStatus(snap('forming'), 2, 0)).toBe('active');
   });
 
+  it('rotation circles wait on the creator, not the headcount', () => {
+    expect(svc.nextStatus({ ...snap('forming'), targetMembers: 3, autoActivates: false }, 3, 0)).toBeNull();
+    expect(svc.nextStatus({ ...snap('forming'), targetMembers: 3 }, 3, 0)).toBe('active');
+  });
+
   it('active → goal_reached when balance crosses the goal', () => {
     expect(svc.nextStatus(snap('active'), 2, 999.99)).toBeNull();
     expect(svc.nextStatus(snap('active'), 2, 1000)).toBe('goal_reached');

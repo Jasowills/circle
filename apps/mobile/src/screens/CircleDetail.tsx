@@ -144,6 +144,17 @@ export function CircleDetailScreen({
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const activate = useMutation({
+    mutationFn: () => api.post(`/circles/${circleId}/activate`),
+    onSuccess: () => {
+      setMsg("Circle locked. Rotation drawn, cycle 1 is collecting.");
+      qc.invalidateQueries({ queryKey: ["circle", circleId] });
+      qc.invalidateQueries({ queryKey: ["cycles", circleId] });
+      qc.invalidateQueries({ queryKey: ["circles"] });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const saveRotation = useMutation({
     mutationFn: (body: { mode: string; order: string[] }) =>
       api.patch(`/circles/${circleId}/rotation`, body),
@@ -257,6 +268,26 @@ export function CircleDetailScreen({
           <Text style={s.text}>You've been invited to this circle.</Text>
           <TouchableOpacity style={s.btn} onPress={() => accept.mutate()}>
             <Text style={s.btnText}>Accept invite</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {d.myMembership.role === "creator" && d.status === "forming" && (
+        <View style={s.card}>
+          <Text style={s.h3}>Lock the circle</Text>
+          <Text style={s.muted}>
+            {d.members.filter((m) => m.status === "active").length}
+            {d.targetMembers ? ` of ${d.targetMembers}` : ""} seats filled.
+            Activating freezes the roster, draws the order, and opens cycle 1. Nobody joins after.
+          </Text>
+          <TouchableOpacity
+            style={s.btn}
+            onPress={() => activate.mutate()}
+            disabled={activate.isPending}
+          >
+            <Text style={s.btnText}>
+              {activate.isPending ? "Locking…" : "Activate circle"}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -379,9 +410,10 @@ export function CircleDetailScreen({
         </View>
       ) : null}
 
-      <View style={s.card}>
-        <Text style={s.h3}>Invite</Text>
-        <Text style={s.muted}>Find them on Circle. Only members can be invited.</Text>
+      {d.status === "forming" && (
+        <View style={s.card}>
+          <Text style={s.h3}>Invite</Text>
+          <Text style={s.muted}>Find them on Circle. Only members can be invited.</Text>
         <TextInput
           style={[s.input, { marginTop: 8 }]}
           value={findQ}
@@ -417,6 +449,7 @@ export function CircleDetailScreen({
           <Text style={[s.muted, { marginTop: 8 }]}>Nobody matches. They need a Circle account first.</Text>
         )}
       </View>
+      )}
 
       <View style={s.card}>
         <Text style={s.h3}>Circle facts</Text>

@@ -60,23 +60,23 @@ export function NotificationsPage() {
             const unread = !seenAt || n.at > seenAt;
             const Icon = I[KIND_ICON[n.kind] ?? 'bell'];
             return (
-              <li
-                key={n.id}
-                onClick={() => n.circleId && nav(`/circles/${n.circleId}`)}
-                style={{ cursor: n.circleId ? 'pointer' : 'default', padding: '12px' }}
-              >
-                <div className="row" style={{ gap: 12, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-                  <span style={{ marginTop: 2 }}><Icon size={19} /></span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: unread ? 800 : 400 }}>{n.title}</div>
-                    <div className="muted" style={{ fontSize: 13 }}>{n.body}</div>
-                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                      {new Date(n.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                      {unread ? ' · new' : ''}
+                <li
+                  key={n.id}
+                  onClick={() => n.circleId && nav(`/circles/${n.circleId}`)}
+                  style={{ cursor: n.circleId ? 'pointer' : 'default', padding: '16px 12px' }}
+                >
+                  <div className="row" style={{ gap: 16, alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+                    <span style={{ marginTop: 3 }}><Icon size={20} /></span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: unread ? 800 : 400, marginBottom: 2 }}>{n.title}</div>
+                      <div className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>{n.body}</div>
+                      <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                        {new Date(n.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        {unread ? ' · new' : ''}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </li>
+                </li>
             );
           })}
         </ul>

@@ -176,6 +176,9 @@ export class CirclesService {
     const circle = await this.requireCircle(circleId);
     await this.requireActiveMember(circleId, inviterId);
     if (circle.status === 'closed') throw new BadRequestException('Circle is closed');
+    if (circle.status !== 'forming') {
+      throw new BadRequestException('This circle already started. No mid-rotation joiners.');
+    }
 
     const invitee = by.userId
       ? await this.prisma.user.findUnique({ where: { id: by.userId } })
@@ -198,7 +201,10 @@ export class CirclesService {
   }
 
   async accept(circleId: string, userId: string) {
-    await this.requireCircle(circleId);
+    const circle = await this.requireCircle(circleId);
+    if (circle.status !== 'forming') {
+      throw new BadRequestException('This circle already started. No mid-rotation joiners.');
+    }
     const membership = await this.prisma.circleMembership.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
@@ -211,6 +217,27 @@ export class CirclesService {
     });
     this.events.memberJoined(circleId, { userId, status: 'active' });
     await this.applyTransitions(circleId, 'member_accepted');
+    return this.detail(circleId, userId);
+  }
+
+  /** Creator locks the circle: roster frozen, order drawn, cycle 1 opens.
+   *  After this, nobody joins mid-rotation — early and late members would
+   *  otherwise collect different pots for the same buy-in. */
+  async activate(circleId: string, userId: string) {
+    const circle = await this.requireCircle(circleId);
+    const mine = await this.prisma.circleMembership.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (!mine || mine.role !== 'creator' || mine.status !== 'active') {
+      throw new ForbiddenException('Only the creator activates a circle');
+    }
+    if (circle.status !== 'forming') throw new BadRequestException(`Circle is already ${circle.status}`);
+    const active = await this.prisma.circleMembership.count({ where: { circleId, status: 'active' } });
+    if (active < 2) throw new BadRequestException('Need at least 2 active members to activate');
+    await this.prisma.circle.update({ where: { id: circleId }, data: { status: 'active' } });
+    this.state.logTransition(circleId, 'forming', 'active', 'creator_activate');
+    this.events.statusChanged(circleId, { from: 'forming', to: 'active' });
+    if (circle.contributionAmount !== null) await this.lockRotation(circleId);
     return this.detail(circleId, userId);
   }
 
@@ -591,7 +618,13 @@ export class CirclesService {
       const next = isRotation && current === 'active'
         ? null
         : this.state.nextStatus(
-            { id: circleId, status: current, goalAmount: Number(circle.goalAmount), targetMembers: circle.targetMembers },
+            {
+              id: circleId,
+              status: current,
+              goalAmount: Number(circle.goalAmount),
+              targetMembers: circle.targetMembers,
+              autoActivates: !isRotation,
+            },
             activeMemberCount,
             balance,
           );

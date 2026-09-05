@@ -6,15 +6,18 @@ export interface CircleSnapshot {
   status: CircleStatus;
   goalAmount: number;
   targetMembers?: number | null;
+  // Rotation circles never auto-activate: the creator locks them explicitly,
+  // so nobody can join mid-rotation and skew the pots.
+  autoActivates?: boolean;
 }
 
 /**
  * Status decisions live here and nowhere else. Call nextStatus() instead of
  * inlining `if` checks in controllers or services.
  *
- *   forming --(full: activeMembers >= targetMembers, else >= 2)--> active
- *   active  --(balance >= goal, legacy goal circles)-------------> goal_reached
- *   active  --(last cycle paid, rotation circles)----------------> completed
+ *   forming --(full + creator activates, or legacy auto)--> active
+ *   active  --(balance >= goal, legacy goal circles)-------> goal_reached
+ *   active  --(last cycle paid, rotation circles)-----------> completed
  *   active|goal_reached|completed --(creator)--> closed
  */
 @Injectable()
@@ -28,7 +31,9 @@ export class CircleStateService {
     balance: number,
   ): CircleStatus | null {
     const needed = snapshot.targetMembers && snapshot.targetMembers >= 2 ? snapshot.targetMembers : 2;
-    if (snapshot.status === 'forming' && activeMemberCount >= needed) return 'active';
+    if (snapshot.status === 'forming' && snapshot.autoActivates !== false && activeMemberCount >= needed) {
+      return 'active';
+    }
     if (snapshot.status === 'active' && balance >= snapshot.goalAmount) return 'goal_reached';
     return null;
   }

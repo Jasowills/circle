@@ -41,7 +41,7 @@ describe('Circle e2e (demo flow)', () => {
   afterAll(async () => {
     // FK-safe cleanup of everything this run created.
     const users = await prisma.user.findMany({
-      where: { email: { in: [emailA, emailB, emailPwd, `e2e-x-${stamp}@example.com`, `e2e-y-${stamp}@example.com`, `e2e-z-${stamp}@example.com`, `e2e-p-${stamp}@example.com`, `e2e-q-${stamp}@example.com`, `e2e-s-${stamp}@example.com`, `e2e-t-${stamp}@example.com`] } },
+      where: { email: { in: [emailA, emailB, emailPwd, `e2e-x-${stamp}@example.com`, `e2e-y-${stamp}@example.com`, `e2e-z-${stamp}@example.com`, `e2e-p-${stamp}@example.com`, `e2e-q-${stamp}@example.com`, `e2e-s-${stamp}@example.com`, `e2e-t-${stamp}@example.com`, `e2e-m-${stamp}@example.com`, `e2e-n-${stamp}@example.com`, `e2e-o-${stamp}@example.com`] } },
       select: { id: true },
     });
     const uids = users.map((u) => u.id);
@@ -197,7 +197,14 @@ describe('Circle e2e (demo flow)', () => {
       .send({ email: `e2e-y-${stamp}@example.com` });
     const acc = await request(baseUrl).post(`/circles/${rc}/accept`)
       .set('Authorization', `Bearer ${tY}`);
-    expect(acc.body.status).toBe('active');
+    expect(acc.body.status).toBe('forming'); // rotation waits on the creator
+    const early = await request(baseUrl).post(`/circles/${rc}/contribute`)
+      .set('Authorization', `Bearer ${tX}`)
+      .send({ amount: 1000, idempotencyKey: randomUUID() });
+    expect(early.status).toBe(200); // contributions accrue while forming
+    const act = await request(baseUrl).post(`/circles/${rc}/activate`)
+      .set('Authorization', `Bearer ${tX}`);
+    expect(act.body.status).toBe('active');
 
     const sched = await request(baseUrl).get(`/circles/${rc}/cycles`)
       .set('Authorization', `Bearer ${tX}`);
@@ -209,7 +216,7 @@ describe('Circle e2e (demo flow)', () => {
 
     const w0 = await request(baseUrl).get('/wallet')
       .set('Authorization', `Bearer ${tX}`);
-    expect(w0.body.balance).toBe(100000); // demo-funded on first touch
+    expect(w0.body.balance).toBe(99000); // 100k demo fund minus the forming contribution above
 
     const k1 = randomUUID();
     const pay1 = await request(baseUrl).post(`/circles/${rc}/contribute`)
@@ -218,7 +225,7 @@ describe('Circle e2e (demo flow)', () => {
     expect(pay1.status).toBe(200);
     const w1 = await request(baseUrl).get('/wallet')
       .set('Authorization', `Bearer ${tX}`);
-    expect(w1.body.balance).toBe(90000); // debited
+    expect(w1.body.balance).toBe(89000); // debited
 
     const pay2 = await request(baseUrl).post(`/circles/${rc}/contribute`)
       .set('Authorization', `Bearer ${tY}`)
@@ -233,7 +240,7 @@ describe('Circle e2e (demo flow)', () => {
     const recipToken = firstRecipient === idX ? tX : tY;
     const wRecip = await request(baseUrl).get('/wallet')
       .set('Authorization', `Bearer ${recipToken}`);
-    expect(Number(wRecip.body.balance)).toBeGreaterThan(90000);
+    expect(Number(wRecip.body.balance)).toBeGreaterThan(89000);
 
     // Fill cycle 2 → rotation completes.
     await request(baseUrl).post(`/circles/${rc}/contribute`)
@@ -264,6 +271,8 @@ describe('Circle e2e (demo flow)', () => {
       .send({ email: `e2e-q-${stamp}@example.com` });
     await request(baseUrl).post(`/circles/${rc}/accept`)
       .set('Authorization', `Bearer ${tQ}`);
+    await request(baseUrl).post(`/circles/${rc}/activate`)
+      .set('Authorization', `Bearer ${tP}`);
     const sched = await request(baseUrl).get(`/circles/${rc}/cycles`)
       .set('Authorization', `Bearer ${tP}`);
     const c1 = sched.body[0];
@@ -321,6 +330,8 @@ describe('Circle e2e (demo flow)', () => {
       .send({ email: `e2e-t-${stamp}@example.com` });
     await request(baseUrl).post(`/circles/${rc}/accept`)
       .set('Authorization', `Bearer ${tT}`);
+    await request(baseUrl).post(`/circles/${rc}/activate`)
+      .set('Authorization', `Bearer ${tS}`);
     const first = await request(baseUrl).post(`/circles/${rc}/contribute`)
       .set('Authorization', `Bearer ${tS}`)
       .send({ amount: 1000, idempotencyKey: randomUUID() });
@@ -333,6 +344,40 @@ describe('Circle e2e (demo flow)', () => {
     const detail = await request(baseUrl).get(`/circles/${rc}`)
       .set('Authorization', `Bearer ${tS}`);
     expect(detail.body.myNextContributionAt).not.toBeNull();
+  });
+
+  it('locks the roster on activation: no mid-rotation joiners', async () => {
+    const m = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-m-${stamp}@example.com` });
+    const n = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-n-${stamp}@example.com` });
+    const o = await request(baseUrl).post('/auth/dev-login').send({ email: `e2e-o-${stamp}@example.com` });
+    const tM = m.body.accessToken as string;
+    const tN = n.body.accessToken as string;
+    const tO = o.body.accessToken as string;
+    const c = await request(baseUrl).post('/circles')
+      .set('Authorization', `Bearer ${tM}`)
+      .send({ name: 'E2E Lock', goalAmount: 14000, contributionAmount: 1000, targetMembers: 3 });
+    const rc = c.body.id as string;
+    createdCircleIds.push(rc);
+    await request(baseUrl).post(`/circles/${rc}/invite`)
+      .set('Authorization', `Bearer ${tM}`)
+      .send({ email: `e2e-n-${stamp}@example.com` });
+    await request(baseUrl).post(`/circles/${rc}/accept`)
+      .set('Authorization', `Bearer ${tN}`);
+    // Non-creator cannot activate; solo circle cannot activate.
+    const noAuth = await request(baseUrl).post(`/circles/${rc}/activate`)
+      .set('Authorization', `Bearer ${tN}`);
+    expect(noAuth.status).toBe(403);
+    const act = await request(baseUrl).post(`/circles/${rc}/activate`)
+      .set('Authorization', `Bearer ${tM}`);
+    expect(act.body.status).toBe('active');
+    // Late invite + late accept + late join all refuse.
+    const lateInv = await request(baseUrl).post(`/circles/${rc}/invite`)
+      .set('Authorization', `Bearer ${tM}`)
+      .send({ email: `e2e-o-${stamp}@example.com` });
+    expect(lateInv.status).toBe(400);
+    const lateJoin = await request(baseUrl).post(`/circles/${rc}/join`)
+      .set('Authorization', `Bearer ${tO}`);
+    expect(lateJoin.status).toBe(400);
   });
 
   it('rejects contributions the wallet cannot cover', async () => {
