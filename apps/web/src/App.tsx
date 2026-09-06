@@ -13,6 +13,7 @@ import { ProfilePage } from './pages/Profile';
 import { PeoplePage } from './pages/People';
 import { CirclesList } from './pages/CirclesList';
 import { CircleDetailPage } from './pages/CircleDetail';
+import { Landing } from './pages/Landing';
 
 function Shell() {
   const { user, offline, ready, retry, signOut } = useAuth();
@@ -98,6 +99,7 @@ export function App() {
     <ThemeProvider>
       <AuthProvider>
         <Routes>
+          <Route path="/landing" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/*" element={<Shell />} />

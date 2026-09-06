@@ -153,11 +153,9 @@ export function LoginScreen() {
               <Text style={mode === 'signin' ? s.btnText : s.btnGhostText}>Sign in</Text>
             </TouchableOpacity>
           </View>
-          <Text style={[s.muted, { marginBottom: 4 }]}>
-            {mode === 'join' ? 'New here? Create your account with Google in seconds.' : 'Welcome back. Use the Google account you joined with.'}
-          </Text>
+   
           {inExpoGo ? (
-            <Text style={s.muted}>Running in Expo Go, so sign in below. Google needs a dev build.</Text>
+            <Text style={s.muted}></Text>
           ) : (
             <TouchableOpacity
               style={[s.btnGhost, { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 }]}
@@ -168,7 +166,7 @@ export function LoginScreen() {
               <Text style={s.btnGhostText}>Continue with Google</Text>
             </TouchableOpacity>
           )}
-          <Text style={[s.muted, { textAlign: 'center', marginTop: 12 }]}>or continue with email</Text>
+          <Text style={[s.muted, { textAlign: 'center', marginTop: 12 }]}> Continue with email</Text>
           {!inExpoGo && (
             <TouchableOpacity style={s.btnGhost} onPress={() => setShowDev(!showDev)}>
               <Text style={s.btnGhostText}>Trouble signing in?</Text>
@@ -176,7 +174,7 @@ export function LoginScreen() {
           )}
           {showDev && (
             <View>
-              <Text style={s.muted}>No Google account handy? Use email + password below.</Text>
+              <Text style={s.muted}></Text>
               {err ? (
                 <View style={s.error}>
                   <Text style={s.errorText}>{err}</Text>
