@@ -39,16 +39,14 @@ export function PeoplePage() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="row" style={{ gap: 10, flexWrap: 'nowrap' }}>
-          <I.search size={18} />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name or email"
-            style={{ border: 'none', paddingLeft: 0 }}
-          />
-        </div>
+      <div className="row" style={{ gap: 10, flexWrap: 'nowrap', maxWidth: 480, border: '1px solid var(--border)', borderRadius: 8, padding: '4px 12px', marginBottom: 20 }}>
+        <I.search size={18} />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search name or email"
+          style={{ border: 'none', paddingLeft: 0 }}
+        />
       </div>
 
       <div className="people-grid">
@@ -56,21 +54,22 @@ export function PeoplePage() {
           <div
             key={p.id}
             className="card person-card"
+            style={{ padding: 28 }}
             onClick={() => nav(`/users/${p.id}`)}
             onKeyDown={(e) => e.key === 'Enter' && nav(`/users/${p.id}`)}
             tabIndex={0}
             role="button"
           >
             {p.avatarUrl ? (
-              <img className="avatar" src={p.avatarUrl} alt="" style={{ width: 52, height: 52 }} />
+              <img className="avatar" src={p.avatarUrl} alt="" style={{ width: 64, height: 64 }} />
             ) : (
-              <span className="avatar-fallback" style={{ width: 52, height: 52, fontSize: 20 }}>
+              <span className="avatar-fallback" style={{ width: 64, height: 64, fontSize: 24 }}>
                 {p.name.charAt(0).toUpperCase()}
               </span>
             )}
-            <div style={{ fontWeight: 700, marginTop: 12 }}>{p.name}</div>
-            <div className="muted" style={{ fontSize: 13 }}>{p.email}</div>
-            <span className="muted" style={{ fontSize: 13, fontWeight: 700, marginTop: 12 }}>View profile →</span>
+            <div style={{ fontWeight: 700, fontSize: 17, marginTop: 16 }}>{p.name}</div>
+            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{p.email}</div>
+            <span className="muted" style={{ fontSize: 13, fontWeight: 700, marginTop: 16 }}>View profile →</span>
           </div>
         ))}
       </div>
