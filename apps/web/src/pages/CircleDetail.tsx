@@ -52,7 +52,10 @@ export function CircleDetailPage() {
     };
     socket.on('connect', () => socket.emit('join', { circleId: id, token }));
     socket.on('contribution.created', refresh);
-    socket.on('member.joined', refresh);
+    socket.on('member.joined', (p: { userId: string; status: string }) => {
+      if (p.status === 'active') setMsg({ ok: true, text: 'A new member just joined.' });
+      refresh();
+    });
     socket.on('circle.status_changed', refresh);
     socket.on('payout.completed', refresh);
     socket.on('payout.pending', refresh);
@@ -190,6 +193,9 @@ export function CircleDetailPage() {
               <h3 className="serif" style={{ fontSize: 22, margin: 0 }}>Contribute</h3>
               <span className="muted" style={{ fontSize: 13 }}>Wallet ₦{Number(wallet.data?.balance ?? 0).toLocaleString()}</span>
             </div>
+            {d.status === 'forming' ? (
+              <p className="muted" style={{ fontSize: 13 }}>Contributions open once the creator activates this circle.</p>
+            ) : null}
             {d.contributionAmount ? (
               <p style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 700 }}>
                 ₦{Number(d.contributionAmount).toLocaleString()}{' '}

@@ -220,6 +220,18 @@ async function main() {
     invitees: [['emeka@circle.com', 3]],
   });
 
+  // J. Friday Ajo + K. Market Money — more open doors for discover.
+  await makeCircle({
+    name: 'Friday Ajo', contrib: 15000, ago: 2, status: 'forming',
+    members: [['amaka@circle.com', 'creator', 2]],
+    invitees: [['ngozi@circle.com', 1]],
+  });
+  await makeCircle({
+    name: 'Market Money', contrib: 20000, ago: 2, status: 'forming',
+    members: [['funmi@circle.com', 'creator', 2]],
+    invitees: [['emeka@circle.com', 1]],
+  });
+
   // E. Demo Day Ajo — 1,000,000/1,050,000. James's next ₦50k tap completes it
   // and pays the full pot to James, live.
   const e = await makeCircle({

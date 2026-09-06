@@ -260,6 +260,12 @@ export class CirclesService {
     if (circle.status === 'closed' || circle.status === 'completed') {
       throw new BadRequestException('This circle is no longer collecting');
     }
+    // Money moves only in live circles. Forming circles collect nothing until
+    // the creator activates them — otherwise pre-activation taps would land
+    // in pots whose rotation order doesn't exist yet.
+    if (circle.status !== 'active') {
+      throw new BadRequestException('Activate the circle before contributing');
+    }
     await this.requireActiveMember(circleId, userId);
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException('Amount must be a positive number');

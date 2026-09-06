@@ -84,7 +84,10 @@ export function CircleDetailScreen({
       socket = io(API_URL, { transports: ["websocket"] });
       socket.on("connect", () => socket?.emit("join", { circleId, token }));
       socket.on("contribution.created", refresh);
-      socket.on("member.joined", refresh);
+      socket.on("member.joined", (p: { userId: string; status: string }) => {
+        if (p.status === "active") setMsg("A new member just joined.");
+        refresh();
+      });
       socket.on("circle.status_changed", refresh);
       socket.on("payout.completed", refresh);
       socket.on("payout.pending", refresh);
@@ -298,6 +301,11 @@ export function CircleDetailScreen({
             Wallet ₦{Number(wallet.data?.balance ?? 0).toLocaleString()}
           </Text>
         </View>
+        {d.status === "forming" ? (
+          <Text style={[s.muted, { marginBottom: 12 }]}>
+            Contributions open once the creator activates this circle.
+          </Text>
+        ) : null}
         {d.contributionAmount ? (
           <View style={{ marginBottom: 12 }}>
             <Text style={s.h2}>

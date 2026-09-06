@@ -195,7 +195,7 @@ describe('Circle e2e (demo flow)', () => {
     const early = await request(baseUrl).post(`/circles/${rc}/contribute`)
       .set('Authorization', `Bearer ${tX}`)
       .send({ amount: 1000, idempotencyKey: randomUUID() });
-    expect(early.status).toBe(200);
+    expect(early.status).toBe(400);
     const act = await request(baseUrl).post(`/circles/${rc}/activate`)
       .set('Authorization', `Bearer ${tX}`);
     expect(act.body.status).toBe('active');
@@ -210,7 +210,7 @@ describe('Circle e2e (demo flow)', () => {
 
     const w0 = await request(baseUrl).get('/wallet')
       .set('Authorization', `Bearer ${tX}`);
-    expect(w0.body.balance).toBe(99000);
+    expect(w0.body.balance).toBe(100000);
 
     const k1 = randomUUID();
     const pay1 = await request(baseUrl).post(`/circles/${rc}/contribute`)
@@ -219,7 +219,7 @@ describe('Circle e2e (demo flow)', () => {
     expect(pay1.status).toBe(200);
     const w1 = await request(baseUrl).get('/wallet')
       .set('Authorization', `Bearer ${tX}`);
-    expect(w1.body.balance).toBe(89000);
+    expect(w1.body.balance).toBe(90000);
 
     const pay2 = await request(baseUrl).post(`/circles/${rc}/contribute`)
       .set('Authorization', `Bearer ${tY}`)
@@ -233,7 +233,7 @@ describe('Circle e2e (demo flow)', () => {
     const recipToken = firstRecipient === idX ? tX : tY;
     const wRecip = await request(baseUrl).get('/wallet')
       .set('Authorization', `Bearer ${recipToken}`);
-    expect(Number(wRecip.body.balance)).toBeGreaterThan(89000);
+    expect(Number(wRecip.body.balance)).toBeGreaterThan(90000);
 
     await request(baseUrl).post(`/circles/${rc}/contribute`)
       .set('Authorization', `Bearer ${tX}`)
