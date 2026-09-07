@@ -323,7 +323,7 @@ export class CirclesService {
             type: 'circle_contribution',
             relatedCircleId: circleId,
             relatedCycleId: currentCycle?.id,
-            idempotencyKey: `contrib:${key}`,
+            idempotencyKey: `contrib:${circleId}:${key}`,
           },
         });
         return tx.ledgerEntry.create({
